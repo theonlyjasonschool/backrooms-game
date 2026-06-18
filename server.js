@@ -1,31 +1,37 @@
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
+const path = require('path');
 const io = require('socket.io')(http, { cors: { origin: "*" } });
 
-const players = {};
-const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
-// Serve static files (like your index.html) from the current directory
+// Serve static assets out of the root project folder
 app.use(express.static(__dirname));
 
-// Send index.html when someone visits the main root URL
-app.get('/', (path, res) => {
-    res.sendFile(__dirname + '/index.html');
+// Primary route handler mapping to the 3D game client canvas
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+const players = {};
+// Hex color presets assigned randomly to incoming lost researchers
+const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
+
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`User mapped into matrix zone: ${socket.id}`);
     
+    // Set baseline position directly on the floor structure (y: 0)
     players[socket.id] = {
-        pos: { x: 3, y: 0, z: 3 }, // Base position is on the floor
+        pos: { x: 3, y: 0, z: 3 },
         rotY: 0,
         color: hexColors[Math.floor(Math.random() * hexColors.length)],
         flashlightOn: false
     };
-    };
 
+    // Synchronize network state configurations
     socket.emit('currentPlayers', players);
     socket.broadcast.emit('newPlayer', { id: socket.id, info: players[socket.id] });
 
+    // Stream position state variations downstream to alternative active matrix sessions
     socket.on('playerMovement', (movementData) => {
         if (players[socket.id]) {
             players[socket.id].pos = movementData.pos;
@@ -36,7 +42,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
+        console.log(`User decoupled from matrix zone: ${socket.id}`);
         delete players[socket.id];
         io.emit('userDisconnected', socket.id);
     });
