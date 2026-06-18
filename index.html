@@ -26,7 +26,38 @@
         #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
         #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
         #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
-        #btn-flashlight { top: 20px; right: 90px; }
+        #btn-flashlight { top: 20px; right: 155px; }
+        
+        /* Mic Toggle Button Layout */
+        #btn-mic-toggle { 
+            top: 20px; right: 90px; padding: 8px 12px; 
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: rgba(40, 40, 30, 0.7); border-color: #dbca8a; color: #eedc82;
+        }
+        #btn-mic-toggle.muted {
+            border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.7);
+        }
+        
+        /* CSS Microphone Icon Logo */
+        .mic-icon {
+            position: relative; width: 10px; height: 14px;
+            background: currentColor; border-radius: 5px; display: inline-block;
+        }
+        .mic-icon::before {
+            content: ''; position: absolute; top: 4px; left: -3px;
+            width: 14px; height: 10px; border: 2px solid currentColor;
+            border-top: none; border-radius: 0 0 10px 10px; box-sizing: border-box;
+        }
+        .mic-icon::after {
+            content: ''; position: absolute; bottom: -4px; left: 4px;
+            width: 2px; height: 4px; background: currentColor;
+        }
+        #btn-mic-toggle.muted .mic-icon::before {
+            /* Mute strike line across logo */
+            content: ''; position: absolute; top: 6px; left: -5px; width: 18px; height: 2px;
+            background: #ff4444; transform: rotate(45deg); border: none;
+        }
+
         #btn-mobile-pause { top: 20px; right: 20px; padding: 12px 15px; }
         #btn-mobile-jump {
             bottom: 40px; right: 40px; width: 70px; height: 70px;
@@ -87,6 +118,7 @@
         <h1>THE BACKROOMS - Test Place(for now)</h1>
         <p><b>PC Controls:</b> WASD to move. Shift to Run. Space to Jump.</p>
         <p>F: Flashlight | [: Alarm | ]: Blackout | \: Chaos Flicker</p>
+        <p>M: Toggle Microphone</p>
         <p><b>Esc</b> to Pause / Release Mouse</p>
         <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="startGame()">ENTER</button>
     </div>
@@ -111,6 +143,11 @@
     <button id="btn-flicker" class="ui-btn" onclick="triggerFlicker()">FLICKER</button>
     <button id="btn-blackout" class="ui-btn" onclick="toggleBlackout()">BLACKOUT: OFF</button>
     <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
+    
+    <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
+        <span class="mic-icon"></span> <span id="mic-text">MIC: ON</span>
+    </button>
+    
     <button id="btn-mobile-pause" class="ui-btn" onclick="pauseGame()">⏸</button>
     <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
 
@@ -119,6 +156,7 @@
     <div id="canvas-container"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
@@ -128,6 +166,11 @@
         
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
+
+        // --- Voice Chat State Variables ---
+        let localStream = null;
+        let micMuted = false;
+        const peers = {}; 
 
         const player = {
             pos: new THREE.Vector3(3, DEFAULT_EYE_HEIGHT, 3),
@@ -178,27 +221,109 @@
             const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
         }
 
-        function startGame() {
+        async function startGame() {
             document.getElementById('instructions').style.display = 'none';
-            gameActive = true; init(); initMultiplayer();
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                console.log("Microphone access ready.");
+            } catch (err) {
+                console.warn("Microphone access blocked or missing hardware:", err);
+                alert("Voice chat won't work because microphone permissions were denied.");
+            }
+
+            gameActive = true; 
+            init(); 
+            initMultiplayer();
         }
 
         function initMultiplayer() {
             if (typeof io === 'undefined') return;
             socket = io();
-            socket.on("currentPlayers", (players) => { Object.keys(players).forEach(id => { if (id !== socket.id) spawnRemotePlayer(id, players[id]); }); });
-            socket.on("newPlayer", (data) => { spawnRemotePlayer(data.id, data.info); });
-            socket.on("playerMoved", (data) => { if (remotePlayers[data.id]) { remotePlayers[data.id].position.copy(data.pos); remotePlayers[data.id].rotation.y = data.rotY; } });
-            socket.on("userDisconnected", (id) => { if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } });
+            
+            socket.on("currentPlayers", (players) => { 
+                Object.keys(players).forEach(id => { 
+                    if (id !== socket.id) {
+                        spawnRemotePlayer(id, players[id]); 
+                        createPeer(id, true);
+                    }
+                }); 
+            });
+            
+            socket.on("newPlayer", (data) => { 
+                spawnRemotePlayer(data.id, data.info); 
+            });
+            
+            socket.on("playerMoved", (data) => { 
+                if (remotePlayers[data.id]) { 
+                    remotePlayers[data.id].position.copy(data.pos); 
+                    remotePlayers[data.id].rotation.y = data.rotY; 
+                } 
+            });
+
+            socket.on("webrtc-signal", (data) => {
+                if (!peers[data.from]) {
+                    createPeer(data.from, false);
+                }
+                peers[data.from].signal(data.signal);
+            });
+            
+            socket.on("userDisconnected", (id) => { 
+                if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
+                if (peers[id]) { peers[id].destroy(); delete peers[id]; }
+            });
         }
 
-        function spawnRemotePlayer(id, info) {
-            if (remotePlayers[id]) return;
-            const model = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 8), new THREE.MeshLambertMaterial({ color: 0xdcb85c }));
-            body.position.y = 0.6; model.add(body);
-            model.position.copy(info.pos || {x:3, y:0, z:3});
-            scene.add(model); remotePlayers[id] = model;
+        function createPeer(targetId, isInitiator) {
+            if (peers[targetId]) return;
+
+            const peer = new SimplePeer({
+                initiator: isInitiator,
+                trickle: false,
+                stream: localStream
+            });
+
+            peer.on('signal', (signalData) => {
+                socket.emit('webrtc-signal', { to: targetId, signal: signalData });
+            });
+
+            peer.on('stream', (stream) => {
+                let audio = document.createElement('audio');
+                audio.srcObject = stream;
+                audio.play();
+                peer.audioElement = audio;
+            });
+
+            peer.on('close', () => {
+                if (peer.audioElement) peer.audioElement.remove();
+            });
+
+            peer.on('error', (err) => console.error("P2P Audio pipe failed:", err));
+
+            peers[targetId] = peer;
+        }
+
+        // --- Microphone Mute Toggle Logic ---
+        function toggleMic() {
+            if (!localStream) return;
+            
+            micMuted = !micMuted;
+            
+            // Toggle enablement on individual audio track streams
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !micMuted;
+            });
+            
+            const micBtn = document.getElementById('btn-mic-toggle');
+            const micText = document.getElementById('mic-text');
+            
+            if (micMuted) {
+                micBtn.classList.add('muted');
+                micText.innerText = "MIC: MUTED";
+            } else {
+                micBtn.classList.remove('muted');
+                micText.innerText = "MIC: ON";
+            }
         }
 
         function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
@@ -256,11 +381,9 @@
                         const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat);
                         floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
                         
-                        // Restored explicit ceilings
                         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat);
                         ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
                         
-                        // Solid Light Emittance Mesh placement
                         if ((x % 3 === 0) && (z % 3 === 0)) {
                             let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'}));
                             lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
@@ -273,9 +396,13 @@
                 }
             }
 
+            // Display UI on touch/mobile configurations
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
                 document.querySelectorAll('.ui-btn').forEach(btn => btn.style.display = 'block');
                 document.getElementById('btn-mobile-jump').style.display = 'flex';
+            } else {
+                // Keep mic visible on PC layout screens
+                document.getElementById('btn-mic-toggle').style.display = 'flex';
             }
             setupControls(); window.addEventListener('resize', onWindowResize); animate();
         }
@@ -297,6 +424,7 @@
                 if(e.key === ' ') handleJumpInput();
                 
                 if(key === 'f') toggleFlashlight();
+                if(key === 'm') toggleMic();
                 if(e.key === '[') toggleAlarm();
                 if(e.key === ']') toggleBlackout();
                 if(e.key === '\\') triggerFlicker();
@@ -370,7 +498,6 @@
             let moveSpeed = running ? 5.2 : 2.8;
             let moveX = 0, moveZ = 0;
 
-            // CORRECTED MOVEMENT DIRECTION MATH FOR YXZ CONTROLLER
             if (keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
             if (keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
             if (keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
@@ -417,6 +544,23 @@
                     rotY: player.yaw
                 });
             }
+
+            // --- PROXIMITY VOICE CALCULATION ---
+            Object.keys(peers).forEach(id => {
+                const peer = peers[id];
+                const model = remotePlayers[id];
+                if (peer && peer.audioElement && model) {
+                    const distance = camera.position.distanceTo(model.position);
+                    const MaxHearingDistance = 24.0; 
+                    
+                    if (distance > MaxHearingDistance) {
+                        peer.audioElement.volume = 0;
+                    } else {
+                        let volFactor = 1 - (distance / MaxHearingDistance);
+                        peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5)));
+                    }
+                }
+            });
 
             renderer.render(scene, camera);
         }
