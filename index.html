@@ -11,7 +11,7 @@
             font-family: 'Courier New', Courier, monospace;
             user-select: none; -webkit-user-select: none; touch-action: none;
         }
-        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
         
         .ui-btn {
             position: absolute; z-index: 20; padding: 12px 20px;
@@ -232,12 +232,11 @@
         function startGame() {
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; 
-            init(); 
             initMultiplayer();
             
-            // FIXED: Lock nu direct het canvas element in plaats van de body
-            if (!isMobile && renderer && renderer.domElement) {
-                renderer.domElement.requestPointerLock();
+            // Lock op body aanvragen na een echte klik interactie
+            if (!isMobile) {
+                document.body.requestPointerLock();
             }
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -358,12 +357,11 @@
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        // FIXED PAUSE / RESUME LOGIC WITH EXPLICIT CANVAS LOOKUP
         function pauseGame() { 
             if (!gameActive || isPaused || isDead) return; 
             isPaused = true; 
             document.getElementById('pause-menu').style.display = 'flex'; 
-            if (document.pointerLockElement === renderer.domElement) {
+            if (document.pointerLockElement === document.body) {
                 document.exitPointerLock(); 
             }
         }
@@ -372,9 +370,8 @@
             isPaused = false; 
             document.getElementById('pause-menu').style.display = 'none'; 
             prevTime = performance.now(); 
-            if (!isMobile && renderer && renderer.domElement) {
-                renderer.domElement.focus();
-                renderer.domElement.requestPointerLock();
+            if (!isMobile) {
+                document.body.requestPointerLock();
             }
         }
 
@@ -387,15 +384,11 @@
         function handleJumpInput() { if (player.isGrounded) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
 
         function init() {
-            if(renderer) return;
             scene = new THREE.Scene(); scene.background = new THREE.Color('#1a1811'); scene.fog = new THREE.FogExp2('#1a1811', 0.08);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.rotation.order = 'YXZ'; 
 
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
-            // Zorg dat het canvas focusbaar is voor key-events
-            renderer.domElement.tabIndex = 1;
-            renderer.domElement.style.outline = 'none';
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
             ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
@@ -440,19 +433,18 @@
                 document.getElementById('btn-flashlight').style.display = 'block';
             }
             
-            updateAdminInterfaceVisibility();
             setupControls(); window.addEventListener('resize', onWindowResize); animate();
         }
 
         function setupControls() {
-            // FIXED POINTERLOCK TARGET
+            // FIX: Luister naar pointerlock op document niveau gekoppeld aan document.body
             document.addEventListener('pointerlockchange', () => { 
                 if (isMobile) return;
-                if (document.pointerLockElement === renderer.domElement) {
+                if (document.pointerLockElement === document.body) {
                     isPaused = false;
                     document.getElementById('pause-menu').style.display = 'none';
                 } else {
-                    if (!isDead) {
+                    if (gameActive && !isDead) {
                         pauseGame();
                     }
                 }
@@ -473,15 +465,10 @@
             sprBtn.addEventListener('touchstart', triggerSprint, {passive: false});
             sprBtn.addEventListener('click', triggerSprint);
 
+            // FIX: Globaal luisteren naar alle knoppen, Escape direct afhandelen
             window.addEventListener('keydown', (e) => {
-                if(document.activeElement === document.getElementById('admin-password-input')) return;
-
-                const code = e.code;
-                const key = e.key.toLowerCase();
-                
-                // FIXED: Directe handmatige afhandeling voor Escape als fail-safe toggler
-                if (e.key === 'Escape') {
-                    e.preventDefault();
+                if (e.key === 'Escape' || e.code === 'Escape') {
+                    if (!gameActive) return;
                     if (isPaused) {
                         resumeGame();
                     } else {
@@ -490,6 +477,11 @@
                     return;
                 }
 
+                if(document.activeElement === document.getElementById('admin-password-input')) return;
+
+                const code = e.code;
+                const key = e.key.toLowerCase();
+                
                 if(key === 'w') keysPressed.w = true; 
                 if(key === 's') keysPressed.s = true;
                 if(key === 'a') keysPressed.a = true; 
@@ -515,15 +507,15 @@
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            // Klik op het canvas om de muis handmatig opnieuw te locken tijdens gameplay
-            document.getElementById('canvas-container').addEventListener('click', (e) => { 
-                if(!isMobile && gameActive && !isPaused && !isDead && renderer && renderer.domElement) {
-                    renderer.domElement.requestPointerLock(); 
+            // Klik op de pagina vangt de muis opnieuw op mits gestart
+            document.body.addEventListener('click', (e) => { 
+                if(!isMobile && gameActive && !isPaused && !isDead) {
+                    document.body.requestPointerLock(); 
                 }
             });
             
             window.addEventListener('mousemove', (e) => {
-                if (!isMobile && document.pointerLockElement !== renderer.domElement || isPaused || isDead) return;
+                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
                 player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
@@ -644,6 +636,9 @@
 
             renderer.render(scene, camera);
         }
+
+        // Koppel initialisatie direct aan het laden van de pagina!
+        window.onload = init;
     </script>
 </body>
 </html>
