@@ -229,12 +229,16 @@
             const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
         }
 
-        // FIXED: game start nu direct, mic laadt asynchroon op de achtergrond
         function startGame() {
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; 
             init(); 
             initMultiplayer();
+            
+            // Lock direct aanvragen op pc zodra er op de startknop wordt geklikt
+            if (!isMobile) {
+                document.body.requestPointerLock();
+            }
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
                 .then(stream => {
@@ -354,8 +358,24 @@
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
-        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (!isMobile) document.body.requestPointerLock(); }
+        // FIXED PAUSE / RESUME LOGIC WITH POINTER LOCK INTEGRATION
+        function pauseGame() { 
+            if (!gameActive || isPaused || isDead) return; 
+            isPaused = true; 
+            document.getElementById('pause-menu').style.display = 'flex'; 
+            if (document.pointerLockElement === document.body) {
+                document.exitPointerLock(); 
+            }
+        }
+        
+        function resumeGame() { 
+            isPaused = false; 
+            document.getElementById('pause-menu').style.display = 'none'; 
+            prevTime = performance.now(); 
+            if (!isMobile) {
+                document.body.requestPointerLock();
+            }
+        }
 
         function toggleFlashlight() { 
             flashlightOn = !flashlightOn; 
@@ -421,9 +441,17 @@
         }
 
         function setupControls() {
-            const container = document.body;
+            // FIXED POINTERLOCK STATE CHANGED LISTENER
             document.addEventListener('pointerlockchange', () => { 
-                if (!isMobile && document.pointerLockElement !== container && !isDead && !isPaused) pauseGame(); 
+                if (isMobile) return;
+                if (document.pointerLockElement === document.body) {
+                    isPaused = false;
+                    document.getElementById('pause-menu').style.display = 'none';
+                } else {
+                    if (!isDead) {
+                        pauseGame();
+                    }
+                }
             });
 
             const sprBtn = document.getElementById('btn-sprint-toggle');
@@ -472,12 +500,15 @@
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            container.addEventListener('click', () => { 
-                if(!isMobile && gameActive && !isPaused && !isDead) container.requestPointerLock(); 
+            // Klik op het canvas of scherm om de muis weer te vangen (alleen als game actief is en niet gepauzeerd)
+            document.body.addEventListener('click', (e) => { 
+                if(!isMobile && gameActive && !isPaused && !isDead) {
+                    document.body.requestPointerLock(); 
+                }
             });
             
             window.addEventListener('mousemove', (e) => {
-                if (!isMobile && document.pointerLockElement !== container || isPaused || isDead) return;
+                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
                 player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
