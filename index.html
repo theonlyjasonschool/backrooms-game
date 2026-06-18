@@ -229,13 +229,14 @@
         }
 
         function startGame() {
-            document.getElementById('instructions').style.display = 'none';
-            gameActive = true; 
-            initMultiplayer();
-            
+            // Vraag Pointer Lock direct aan bij de allereerste muisklik-interactie op ENTER
             if (!isMobile) {
                 document.body.requestPointerLock();
             }
+
+            document.getElementById('instructions').style.display = 'none';
+            gameActive = true; 
+            initMultiplayer();
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
                 .then(stream => {
@@ -435,6 +436,7 @@
         }
 
         function setupControls() {
+            // Luister naar pointerlock wijzigingen
             document.addEventListener('pointerlockchange', () => { 
                 if (isMobile) return;
                 if (document.pointerLockElement === document.body) {
@@ -444,6 +446,13 @@
                     if (gameActive && !isDead) {
                         pauseGame();
                     }
+                }
+            });
+
+            // Klikken binnen het 3D canvas vraagt opnieuw de muis aan
+            document.getElementById('canvas-container').addEventListener('click', () => {
+                if (!isMobile && gameActive && !isPaused && !isDead) {
+                    document.body.requestPointerLock();
                 }
             });
 
@@ -503,7 +512,10 @@
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
+            // Fallback klik-event op de body
             document.body.addEventListener('click', (e) => { 
+                if(e.target.id === 'admin-password-input' || e.target.id === 'btn-admin-submit') return;
+                
                 if(!isMobile && gameActive && !isPaused && !isDead) {
                     document.body.requestPointerLock(); 
                 }
