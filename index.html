@@ -235,9 +235,9 @@
             init(); 
             initMultiplayer();
             
-            // Lock direct aanvragen op pc zodra er op de startknop wordt geklikt
-            if (!isMobile) {
-                document.body.requestPointerLock();
+            // FIXED: Lock nu direct het canvas element in plaats van de body
+            if (!isMobile && renderer && renderer.domElement) {
+                renderer.domElement.requestPointerLock();
             }
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -358,12 +358,12 @@
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        // FIXED PAUSE / RESUME LOGIC WITH POINTER LOCK INTEGRATION
+        // FIXED PAUSE / RESUME LOGIC WITH EXPLICIT CANVAS LOOKUP
         function pauseGame() { 
             if (!gameActive || isPaused || isDead) return; 
             isPaused = true; 
             document.getElementById('pause-menu').style.display = 'flex'; 
-            if (document.pointerLockElement === document.body) {
+            if (document.pointerLockElement === renderer.domElement) {
                 document.exitPointerLock(); 
             }
         }
@@ -372,8 +372,9 @@
             isPaused = false; 
             document.getElementById('pause-menu').style.display = 'none'; 
             prevTime = performance.now(); 
-            if (!isMobile) {
-                document.body.requestPointerLock();
+            if (!isMobile && renderer && renderer.domElement) {
+                renderer.domElement.focus();
+                renderer.domElement.requestPointerLock();
             }
         }
 
@@ -392,6 +393,9 @@
             camera.rotation.order = 'YXZ'; 
 
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+            // Zorg dat het canvas focusbaar is voor key-events
+            renderer.domElement.tabIndex = 1;
+            renderer.domElement.style.outline = 'none';
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
             ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
@@ -441,10 +445,10 @@
         }
 
         function setupControls() {
-            // FIXED POINTERLOCK STATE CHANGED LISTENER
+            // FIXED POINTERLOCK TARGET
             document.addEventListener('pointerlockchange', () => { 
                 if (isMobile) return;
-                if (document.pointerLockElement === document.body) {
+                if (document.pointerLockElement === renderer.domElement) {
                     isPaused = false;
                     document.getElementById('pause-menu').style.display = 'none';
                 } else {
@@ -475,6 +479,17 @@
                 const code = e.code;
                 const key = e.key.toLowerCase();
                 
+                // FIXED: Directe handmatige afhandeling voor Escape als fail-safe toggler
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (isPaused) {
+                        resumeGame();
+                    } else {
+                        pauseGame();
+                    }
+                    return;
+                }
+
                 if(key === 'w') keysPressed.w = true; 
                 if(key === 's') keysPressed.s = true;
                 if(key === 'a') keysPressed.a = true; 
@@ -500,15 +515,15 @@
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            // Klik op het canvas of scherm om de muis weer te vangen (alleen als game actief is en niet gepauzeerd)
-            document.body.addEventListener('click', (e) => { 
-                if(!isMobile && gameActive && !isPaused && !isDead) {
-                    document.body.requestPointerLock(); 
+            // Klik op het canvas om de muis handmatig opnieuw te locken tijdens gameplay
+            document.getElementById('canvas-container').addEventListener('click', (e) => { 
+                if(!isMobile && gameActive && !isPaused && !isDead && renderer && renderer.domElement) {
+                    renderer.domElement.requestPointerLock(); 
                 }
             });
             
             window.addEventListener('mousemove', (e) => {
-                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead) return;
+                if (!isMobile && document.pointerLockElement !== renderer.domElement || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
                 player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
