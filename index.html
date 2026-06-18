@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Backrooms: Test Place</title>
+    <title>The Backrooms - Test Place</title>
     <style>
         body, html {
             margin: 0; padding: 0; overflow: hidden;
@@ -92,9 +92,8 @@
     </div>
 
     <div id="pause-menu" class="menu-overlay" style="display: none;">
-        <h1 id="pause-title">GAME PAUSED</h1>
-        <p id="pause-desc">Your progress is suspended.</p>
-        <div class="settings-panel" id="sett-panel">
+        <h1>GAME PAUSED</h1>
+        <div class="settings-panel">
             <div class="setting-row">
                 <label for="slider-volume">VOLUME</label>
                 <input type="range" id="slider-volume" min="0" max="1" step="0.05" value="0.5">
@@ -104,7 +103,7 @@
                 <input type="range" id="slider-sens" min="0.2" max="2.5" step="0.05" value="1.0">
             </div>
         </div>
-        <button id="btn-resume-retry" class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
+        <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
     </div>
     
     <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
@@ -128,28 +127,20 @@
         let gameActive = false, isPaused = false, isDead = false;
         
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
-        let gameVolume = 0.5, lookSensitivity = 1.0;
+        let lookSensitivity = 1.0;
 
-        // Player tracking vectors
         const player = {
             pos: new THREE.Vector3(3, DEFAULT_EYE_HEIGHT, 3),
-            targetYaw: 0,
-            targetPitch: 0,
-            yaw: 0,
-            pitch: 0,
+            targetYaw: 0, targetPitch: 0, yaw: 0, pitch: 0,
             moveDir: new THREE.Vector2(0, 0), 
             radius: 0.4, velocityY: 0, isGrounded: true, mobileSprintOn: false,
             walkCycle: 0
         };
 
-        const settings = { 
-            smoothing: 0.4,       // Clean, snappier look tracking
-            bobSpeed: 14.0,       // Synchronized feet steps
-            bobAmount: 0.025      // Controlled depth to completely eliminate room shaking
-        };
+        const settings = { smoothing: 0.4, bobSpeed: 14.0, bobAmount: 0.025 };
         const remotePlayers = {};
-
         const keysPressed = { w:false, a:false, s:false, d:false, Shift:false };
+        
         const map = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
@@ -180,17 +171,16 @@
             const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128);
             const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
         }
+        function createCeilingTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256);
+            ctx.strokeStyle = '#b5b2a5'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 256, 256);
+            const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
+        }
 
         function startGame() {
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; init(); initMultiplayer();
-        }
-
-        function createPlayerModel() {
-            const group = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 8), new THREE.MeshLambertMaterial({ color: 0xdcb85c }));
-            body.position.y = 0.6; group.add(body);
-            return group;
         }
 
         function initMultiplayer() {
@@ -204,42 +194,35 @@
 
         function spawnRemotePlayer(id, info) {
             if (remotePlayers[id]) return;
-            const model = createPlayerModel();
+            const model = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.2, 8), new THREE.MeshLambertMaterial({ color: 0xdcb85c }));
+            body.position.y = 0.6; model.add(body);
             model.position.copy(info.pos || {x:3, y:0, z:3});
             scene.add(model); remotePlayers[id] = model;
         }
 
-        // Complete PointerLock State Synchronization
         function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
-        function resumeGame() { if (isDead) { retryReset(); return; } isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (window.matchMedia("(pointer: fine)").matches) document.body.requestPointerLock(); }
-        function retryReset() { isDead = false; player.pos.set(3, DEFAULT_EYE_HEIGHT, 3); player.yaw = player.targetYaw = 0; player.pitch = player.targetPitch = 0; player.velocityY = 0; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); document.body.requestPointerLock(); }
+        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (window.matchMedia("(pointer: fine)").matches) document.body.requestPointerLock(); }
 
-        // Environment Control & Lighting Hotkeys Logic
         function toggleFlashlight() { 
             flashlightOn = !flashlightOn; 
             flashlight.intensity = flashlightOn ? 3.5 : 0;
             document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF");
         }
-        function toggleAlarm() {
-            alarmActive = !alarmActive;
-            document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
-        }
+        function toggleAlarm() { alarmActive = !alarmActive; document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)"; }
+        
         function toggleBlackout() {
             blackoutActive = !blackoutActive;
             ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
-            fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1);
+            fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1.2);
             document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
         }
         function triggerFlicker() {
             let count = 0;
             let interval = setInterval(() => {
                 let state = Math.random() > 0.5;
-                fluorescentLights.forEach(l => l.intensity = state && !blackoutActive ? 1 : 0);
-                count++;
-                if (count > 8) {
-                    clearInterval(interval);
-                    fluorescentLights.forEach(l => l.intensity = blackoutActive ? 0 : 1);
-                }
+                fluorescentLights.forEach(l => l.intensity = state && !blackoutActive ? 1.2 : 0);
+                count++; if (count > 8) { clearInterval(interval); fluorescentLights.forEach(l => l.intensity = blackoutActive ? 0 : 1.2); }
             }, 80);
         }
 
@@ -256,24 +239,34 @@
 
             ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
             
-            // Build Flashlight
             flashlight = new THREE.SpotLight('#ffffff', 0, 15, Math.PI / 5, 0.5, 1); camera.add(flashlight);
             flashlight.position.set(0, 0, 0); flashlight.target = new THREE.Object3D(); camera.add(flashlight.target);
             flashlight.target.position.set(0, 0, -1); scene.add(camera);
 
-            const wallMat = new THREE.MeshLambertMaterial({ map: createWallpaperTexture() }), floorMat = new THREE.MeshLambertMaterial({ map: createCarpetTexture() });
+            const wallMat = new THREE.MeshLambertMaterial({ map: createWallpaperTexture() });
+            const floorMat = new THREE.MeshLambertMaterial({ map: createCarpetTexture() });
+            const ceilingMat = new THREE.MeshLambertMaterial({ map: createCeilingTexture() });
+
             for (let z = 0; z < map.length; z++) {
                 for (let x = 0; x < map[z].length; x++) {
                     if (map[z][x] === 1) {
                         const wall = new THREE.Mesh(new THREE.BoxGeometry(UNIT_SIZE, WALL_HEIGHT, UNIT_SIZE), wallMat);
                         wall.position.set(x * UNIT_SIZE, WALL_HEIGHT / 2, z * UNIT_SIZE); scene.add(wall);
                     } else {
-                        const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
+                        const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat);
+                        floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
                         
-                        // Add Ceilings + Overhead Lights grid
-                        if ((x + z) % 4 === 0) {
-                            let light = new THREE.PointLight('#fffde8', 1, 8, 1.5);
-                            light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.2, z * UNIT_SIZE);
+                        // Restored explicit ceilings
+                        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat);
+                        ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
+                        
+                        // Solid Light Emittance Mesh placement
+                        if ((x % 3 === 0) && (z % 3 === 0)) {
+                            let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'}));
+                            lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
+
+                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
+                            light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
                             scene.add(light); fluorescentLights.push(light);
                         }
                     }
@@ -290,11 +283,8 @@
         function setupControls() {
             const container = document.body;
             
-            // Native Lock Listeners (Crucial for treating Escape key cleanly)
             document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement !== container) {
-                    pauseGame();
-                }
+                if (document.pointerLockElement !== container && !isDead) { pauseGame(); }
             });
 
             window.addEventListener('keydown', (e) => {
@@ -306,7 +296,6 @@
                 if(e.key === 'Shift') keysPressed.Shift = true;
                 if(e.key === ' ') handleJumpInput();
                 
-                // Hotkeys mapping assignments
                 if(key === 'f') toggleFlashlight();
                 if(e.key === '[') toggleAlarm();
                 if(e.key === ']') toggleBlackout();
@@ -329,7 +318,7 @@
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
-            // Joystick Handling
+            // Joystick Management
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
             let joyTouchId = null, joyStartPos = new THREE.Vector2();
             
@@ -374,7 +363,6 @@
             requestAnimationFrame(animate); if (!gameActive || isPaused || isDead) return;
             const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
 
-            // Step 1: Smooth Look Interpolation Matrix
             player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
             player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
 
@@ -382,36 +370,28 @@
             let moveSpeed = running ? 5.2 : 2.8;
             let moveX = 0, moveZ = 0;
 
-            // Step 2: PERFECTED MOVEMENT TRIGONOMETRY DIRECTIONS FOR YXZ EULER AXIS
-            // Looking Left / Right now aligns properly to global transformation planes
-            if (keysPressed.w) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
-            if (keysPressed.s) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
-            if (keysPressed.a) { moveX += Math.sin(player.yaw + Math.PI/2); moveZ += Math.cos(player.yaw + Math.PI/2); }
-            if (keysPressed.d) { moveX += Math.sin(player.yaw - Math.PI/2); moveZ += Math.cos(player.yaw - Math.PI/2); }
+            // CORRECTED MOVEMENT DIRECTION MATH FOR YXZ CONTROLLER
+            if (keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
+            if (keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
+            if (keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
+            if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
-            // Mobile Joystick vector transformation
             if(player.moveDir.length() > 0) {
-                let forwardX = Math.sin(player.yaw), forwardZ = Math.cos(player.yaw);
-                let rightX = Math.sin(player.yaw - Math.PI/2), rightZ = Math.cos(player.yaw - Math.PI/2);
+                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
+                let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
                 moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x);
                 moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
             }
 
             let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
-            if (mag > 0) { 
-                // Normalized vector scaled smoothly to the delta execution rate
-                moveX = (moveX / mag) * moveSpeed * delta; 
-                moveZ = (moveZ / mag) * moveSpeed * delta; 
-            }
+            if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
 
-            // Step 3: Map Boundary Intersections
             let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
             testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
 
             player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
             if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
 
-            // Step 4: Fluid Camera Transformations
             let curEye = DEFAULT_EYE_HEIGHT;
             if (mag > 0 && player.isGrounded) {
                 player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
@@ -422,7 +402,6 @@
             camera.rotation.y = player.yaw;
             camera.rotation.x = player.pitch;
 
-            // Alarm Mode Color Alteration Flash
             if (alarmActive) {
                 let flashState = Math.sin(time * 0.007) > 0;
                 scene.background.set(flashState ? '#3a0505' : '#1a1811');
@@ -432,7 +411,6 @@
                 if (scene.fog) scene.fog.color.set('#1a1811');
             }
 
-            // Step 5: Socket Cluster Syncing updates
             if (socket && socket.connected) {
                 socket.emit("playerMovement", {
                     pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
