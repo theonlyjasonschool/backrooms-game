@@ -23,9 +23,13 @@
         .ui-btn:active { background: rgba(219, 202, 138, 0.4); }
         
         #btn-sprint-toggle { top: 20px; left: 20px; }
+        
+        /* Admin knoppen (standaard verborgen via CSS totdat je inlogt) */
+        .admin-controls { display: none !important; }
         #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
         #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
         #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
+        
         #btn-flashlight { top: 20px; right: 155px; }
         
         /* Mic Toggle Button Layout */
@@ -53,7 +57,6 @@
             width: 2px; height: 4px; background: currentColor;
         }
         #btn-mic-toggle.muted .mic-icon::before {
-            /* Mute strike line across logo */
             content: ''; position: absolute; top: 6px; left: -5px; width: 18px; height: 2px;
             background: #ff4444; transform: rotate(45deg); border: none;
         }
@@ -92,6 +95,12 @@
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
         .setting-row input[type="range"] { width: 140px; accent-color: #dbca8a; }
 
+        #btn-admin-login {
+            background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff;
+            margin-top: 10px; cursor: pointer; padding: 8px 15px; font-weight: bold;
+            border-radius: 6px; border: 2px solid;
+        }
+
         #vhs-screen-effects {
             position: absolute; top:0; left:0; width:100%; height:100%;
             pointer-events: none; z-index: 10; transform: translate(0,0);
@@ -117,8 +126,8 @@
     <div id="instructions" class="menu-overlay">
         <h1>THE BACKROOMS - Test Place(for now)</h1>
         <p><b>PC Controls:</b> WASD to move. Shift to Run. Space to Jump.</p>
-        <p>F: Flashlight | [: Alarm | ]: Blackout | \: Chaos Flicker</p>
-        <p>M: Toggle Microphone</p>
+        <p>F: Flashlight | M: Toggle Microphone</p>
+        <p id="admin-help-text" style="color: #e0aaff; display: none;">Admin Keys -> [: Alarm | ]: Blackout | \: Chaos Flicker</p>
         <p><b>Esc</b> to Pause / Release Mouse</p>
         <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="startGame()">ENTER</button>
     </div>
@@ -134,14 +143,17 @@
                 <label for="slider-sens">SENSITIVITY</label>
                 <input type="range" id="slider-sens" min="0.2" max="2.5" step="0.05" value="1.0">
             </div>
+            <button id="btn-admin-login" onclick="promptAdminLogin()">ADMIN LOGIN</button>
         </div>
         <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
     </div>
     
     <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
-    <button id="btn-alarm" class="ui-btn" onclick="toggleAlarm()">TOGGLE ALARM</button>
-    <button id="btn-flicker" class="ui-btn" onclick="triggerFlicker()">FLICKER</button>
-    <button id="btn-blackout" class="ui-btn" onclick="toggleBlackout()">BLACKOUT: OFF</button>
+    
+    <button id="btn-alarm" class="ui-btn admin-controls" onclick="requestToggleAlarm()">TOGGLE ALARM</button>
+    <button id="btn-flicker" class="ui-btn admin-controls" onclick="requestTriggerFlicker()">FLICKER</button>
+    <button id="btn-blackout" class="ui-btn admin-controls" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
+    
     <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
     
     <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
@@ -167,9 +179,10 @@
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
 
-        // --- Voice Chat State Variables ---
+        // --- States ---
         let localStream = null;
         let micMuted = false;
+        let isAdmin = false; // Controleert of deze speler de eigenaar is
         const peers = {}; 
 
         const player = {
@@ -223,7 +236,6 @@
 
         async function startGame() {
             document.getElementById('instructions').style.display = 'none';
-            
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 console.log("Microphone access ready.");
@@ -231,7 +243,6 @@
                 console.warn("Microphone access blocked or missing hardware:", err);
                 alert("Voice chat won't work because microphone permissions were denied.");
             }
-
             gameActive = true; 
             init(); 
             initMultiplayer();
@@ -272,58 +283,92 @@
                 if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
                 if (peers[id]) { peers[id].destroy(); delete peers[id]; }
             });
+
+            // --- ONTVANG GESYNCHRONISEERDE ADMIN EVENTS VAN SERVER ---
+            socket.on("sync-alarm", (state) => {
+                alarmActive = state;
+                document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
+            });
+
+            socket.on("sync-blackout", (state) => {
+                blackoutActive = state;
+                ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
+                fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1.2);
+                document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
+            });
+
+            socket.on("sync-flicker", () => {
+                let count = 0;
+                let interval = setInterval(() => {
+                    let state = Math.random() > 0.5;
+                    fluorescentLights.forEach(l => l.intensity = state && !blackoutActive ? 1.2 : 0);
+                    count++; if (count > 8) { clearInterval(interval); fluorescentLights.forEach(l => l.intensity = blackoutActive ? 0 : 1.2); }
+                }, 80);
+            });
         }
 
         function createPeer(targetId, isInitiator) {
             if (peers[targetId]) return;
-
-            const peer = new SimplePeer({
-                initiator: isInitiator,
-                trickle: false,
-                stream: localStream
-            });
-
-            peer.on('signal', (signalData) => {
-                socket.emit('webrtc-signal', { to: targetId, signal: signalData });
-            });
-
+            const peer = new SimplePeer({ initiator: isInitiator, trickle: false, stream: localStream });
+            peer.on('signal', (signalData) => { socket.emit('webrtc-signal', { to: targetId, signal: signalData }); });
             peer.on('stream', (stream) => {
-                let audio = document.createElement('audio');
-                audio.srcObject = stream;
-                audio.play();
-                peer.audioElement = audio;
+                let audio = document.createElement('audio'); audio.srcObject = stream; audio.play(); peer.audioElement = audio;
             });
-
-            peer.on('close', () => {
-                if (peer.audioElement) peer.audioElement.remove();
-            });
-
+            peer.on('close', () => { if (peer.audioElement) peer.audioElement.remove(); });
             peer.on('error', (err) => console.error("P2P Audio pipe failed:", err));
-
             peers[targetId] = peer;
         }
 
-        // --- Microphone Mute Toggle Logic ---
         function toggleMic() {
             if (!localStream) return;
-            
             micMuted = !micMuted;
-            
-            // Toggle enablement on individual audio track streams
-            localStream.getAudioTracks().forEach(track => {
-                track.enabled = !micMuted;
-            });
-            
+            localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
             const micBtn = document.getElementById('btn-mic-toggle');
             const micText = document.getElementById('mic-text');
-            
-            if (micMuted) {
-                micBtn.classList.add('muted');
-                micText.innerText = "MIC: MUTED";
+            if (micMuted) { micBtn.classList.add('muted'); micText.innerText = "MIC: MUTED"; } 
+            else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
+        }
+
+        // --- ADMIN LOGIN LOGICA ---
+        function promptAdminLogin() {
+            const password = prompt("Voer het Admin Wachtwoord in:");
+            if (password === "260112") {
+                isAdmin = true;
+                alert("Inloggen succesvol! Je hebt nu toegang tot het admin-paneel.");
+                document.getElementById('btn-admin-login').innerText = "ADMIN ACTIVE";
+                document.getElementById('btn-admin-login').style.borderColor = "#00ff00";
+                document.getElementById('btn-admin-login').style.color = "#88ff88";
+                document.getElementById('admin-help-text').style.display = 'block';
+                
+                // Maak de knoppen zichtbaar als we op een mobiel/touch apparaat zitten of PC
+                updateAdminInterfaceVisibility();
             } else {
-                micBtn.classList.remove('muted');
-                micText.innerText = "MIC: ON";
+                alert("Onjuist wachtwoord. Toegang geweigerd.");
             }
+        }
+
+        function updateAdminInterfaceVisibility() {
+            if (!isAdmin) return;
+            // Forceer de weergave van admin elementen via Javascript styling bypass
+            document.querySelectorAll('.admin-controls').forEach(btn => {
+                btn.style.setProperty('display', 'block', 'important');
+            });
+        }
+
+        // --- GESYNCHRONISEERDE COMMANDO VERZOEKEN ---
+        function requestToggleAlarm() {
+            if (!isAdmin) return;
+            socket.emit('admin-toggle-alarm', !alarmActive);
+        }
+
+        function requestToggleBlackout() {
+            if (!isAdmin) return;
+            socket.emit('admin-toggle-blackout', !blackoutActive);
+        }
+
+        function requestTriggerFlicker() {
+            if (!isAdmin) return;
+            socket.emit('admin-trigger-flicker');
         }
 
         function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
@@ -333,22 +378,6 @@
             flashlightOn = !flashlightOn; 
             flashlight.intensity = flashlightOn ? 3.5 : 0;
             document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF");
-        }
-        function toggleAlarm() { alarmActive = !alarmActive; document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)"; }
-        
-        function toggleBlackout() {
-            blackoutActive = !blackoutActive;
-            ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
-            fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1.2);
-            document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
-        }
-        function triggerFlicker() {
-            let count = 0;
-            let interval = setInterval(() => {
-                let state = Math.random() > 0.5;
-                fluorescentLights.forEach(l => l.intensity = state && !blackoutActive ? 1.2 : 0);
-                count++; if (count > 8) { clearInterval(interval); fluorescentLights.forEach(l => l.intensity = blackoutActive ? 0 : 1.2); }
-            }, 80);
         }
 
         function handleJumpInput() { if (player.isGrounded) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
@@ -396,13 +425,15 @@
                 }
             }
 
-            // Display UI on touch/mobile configurations
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-                document.querySelectorAll('.ui-btn').forEach(btn => btn.style.display = 'block');
+                document.getElementById('btn-sprint-toggle').style.display = 'block';
+                document.getElementById('btn-mobile-pause').style.display = 'block';
                 document.getElementById('btn-mobile-jump').style.display = 'flex';
+                updateAdminInterfaceVisibility();
             } else {
-                // Keep mic visible on PC layout screens
                 document.getElementById('btn-mic-toggle').style.display = 'flex';
+                document.getElementById('btn-flashlight').style.display = 'block';
+                updateAdminInterfaceVisibility();
             }
             setupControls(); window.addEventListener('resize', onWindowResize); animate();
         }
@@ -425,9 +456,13 @@
                 
                 if(key === 'f') toggleFlashlight();
                 if(key === 'm') toggleMic();
-                if(e.key === '[') toggleAlarm();
-                if(e.key === ']') toggleBlackout();
-                if(e.key === '\\') triggerFlicker();
+                
+                // Sneltoetsen werken alleen als je isAdmin bent geverifieerd
+                if(isAdmin) {
+                    if(e.key === '[') requestToggleAlarm();
+                    if(e.key === ']') requestToggleBlackout();
+                    if(e.key === '\\') requestTriggerFlicker();
+                }
             });
             
             window.addEventListener('keyup', (e) => {
@@ -545,14 +580,12 @@
                 });
             }
 
-            // --- PROXIMITY VOICE CALCULATION ---
             Object.keys(peers).forEach(id => {
                 const peer = peers[id];
                 const model = remotePlayers[id];
                 if (peer && peer.audioElement && model) {
                     const distance = camera.position.distanceTo(model.position);
                     const MaxHearingDistance = 24.0; 
-                    
                     if (distance > MaxHearingDistance) {
                         peer.audioElement.volume = 0;
                     } else {
