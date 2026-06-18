@@ -5,7 +5,13 @@ const io = require('socket.io')(http, { cors: { origin: "*" } });
 
 const players = {};
 const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
+// Serve static files (like your index.html) from the current directory
+app.use(express.static(__dirname));
 
+// Send index.html when someone visits the main root URL
+app.get('/', (path, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
     
