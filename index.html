@@ -24,8 +24,8 @@
         
         #btn-sprint-toggle { top: 20px; left: 20px; }
         
-        /* Admin knoppen (standaard verborgen via CSS totdat je inlogt) */
-        .admin-controls { display: none !important; }
+        /* Admin knoppen: standaard verborgen via display: none */
+        .admin-controls { display: none; }
         #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
         #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
         #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
@@ -98,7 +98,7 @@
         #btn-admin-login {
             background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff;
             margin-top: 10px; cursor: pointer; padding: 8px 15px; font-weight: bold;
-            border-radius: 6px; border: 2px solid;
+            border-radius: 6px; border: 2px solid; width: 100%;
         }
 
         #vhs-screen-effects {
@@ -155,7 +155,6 @@
     <button id="btn-blackout" class="ui-btn admin-controls" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
     
     <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
-    
     <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
         <span class="mic-icon"></span> <span id="mic-text">MIC: ON</span>
     </button>
@@ -179,10 +178,9 @@
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
 
-        // --- States ---
         let localStream = null;
         let micMuted = false;
-        let isAdmin = false; // Controleert of deze speler de eigenaar is
+        let isAdmin = false; 
         const peers = {}; 
 
         const player = {
@@ -238,10 +236,8 @@
             document.getElementById('instructions').style.display = 'none';
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                console.log("Microphone access ready.");
             } catch (err) {
-                console.warn("Microphone access blocked or missing hardware:", err);
-                alert("Voice chat won't work because microphone permissions were denied.");
+                console.warn("Microphone access denied or missing.", err);
             }
             gameActive = true; 
             init(); 
@@ -261,42 +257,33 @@
                 }); 
             });
             
-            socket.on("newPlayer", (data) => { 
-                spawnRemotePlayer(data.id, data.info); 
-            });
-            
+            socket.on("newPlayer", (data) => { spawnRemotePlayer(data.id, data.info); });
             socket.on("playerMoved", (data) => { 
                 if (remotePlayers[data.id]) { 
                     remotePlayers[data.id].position.copy(data.pos); 
                     remotePlayers[data.id].rotation.y = data.rotY; 
                 } 
             });
-
             socket.on("webrtc-signal", (data) => {
-                if (!peers[data.from]) {
-                    createPeer(data.from, false);
-                }
+                if (!peers[data.from]) createPeer(data.from, false);
                 peers[data.from].signal(data.signal);
             });
-            
             socket.on("userDisconnected", (id) => { 
                 if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
                 if (peers[id]) { peers[id].destroy(); delete peers[id]; }
             });
 
-            // --- ONTVANG GESYNCHRONISEERDE ADMIN EVENTS VAN SERVER ---
+            // Sync Admin Events
             socket.on("sync-alarm", (state) => {
                 alarmActive = state;
                 document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
             });
-
             socket.on("sync-blackout", (state) => {
                 blackoutActive = state;
                 ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
                 fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1.2);
                 document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
             });
-
             socket.on("sync-flicker", () => {
                 let count = 0;
                 let interval = setInterval(() => {
@@ -315,7 +302,6 @@
                 let audio = document.createElement('audio'); audio.srcObject = stream; audio.play(); peer.audioElement = audio;
             });
             peer.on('close', () => { if (peer.audioElement) peer.audioElement.remove(); });
-            peer.on('error', (err) => console.error("P2P Audio pipe failed:", err));
             peers[targetId] = peer;
         }
 
@@ -329,18 +315,19 @@
             else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
         }
 
-        // --- ADMIN LOGIN LOGICA ---
+        // --- FIXED ADMIN LOGIN LOGICA ---
         function promptAdminLogin() {
             const password = prompt("Voer het Admin Wachtwoord in:");
             if (password === "260112") {
                 isAdmin = true;
-                alert("Inloggen succesvol! Je hebt nu toegang tot het admin-paneel.");
+                alert("Inloggen succesvol! Je hebt nu toegang tot de admin functionaliteiten.");
+                
                 document.getElementById('btn-admin-login').innerText = "ADMIN ACTIVE";
                 document.getElementById('btn-admin-login').style.borderColor = "#00ff00";
                 document.getElementById('btn-admin-login').style.color = "#88ff88";
                 document.getElementById('admin-help-text').style.display = 'block';
                 
-                // Maak de knoppen zichtbaar als we op een mobiel/touch apparaat zitten of PC
+                // Maak de knoppen direct zichtbaar
                 updateAdminInterfaceVisibility();
             } else {
                 alert("Onjuist wachtwoord. Toegang geweigerd.");
@@ -349,27 +336,14 @@
 
         function updateAdminInterfaceVisibility() {
             if (!isAdmin) return;
-            // Forceer de weergave van admin elementen via Javascript styling bypass
             document.querySelectorAll('.admin-controls').forEach(btn => {
-                btn.style.setProperty('display', 'block', 'important');
+                btn.style.display = 'block';
             });
         }
 
-        // --- GESYNCHRONISEERDE COMMANDO VERZOEKEN ---
-        function requestToggleAlarm() {
-            if (!isAdmin) return;
-            socket.emit('admin-toggle-alarm', !alarmActive);
-        }
-
-        function requestToggleBlackout() {
-            if (!isAdmin) return;
-            socket.emit('admin-toggle-blackout', !blackoutActive);
-        }
-
-        function requestTriggerFlicker() {
-            if (!isAdmin) return;
-            socket.emit('admin-trigger-flicker');
-        }
+        function requestToggleAlarm() { if (isAdmin && socket) socket.emit('admin-toggle-alarm', !alarmActive); }
+        function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
+        function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
         function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
         function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (window.matchMedia("(pointer: fine)").matches) document.body.requestPointerLock(); }
@@ -409,14 +383,12 @@
                     } else {
                         const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat);
                         floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
-                        
                         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat);
                         ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
                         
                         if ((x % 3 === 0) && (z % 3 === 0)) {
                             let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'}));
                             lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
-
                             let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
                             light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
                             scene.add(light); fluorescentLights.push(light);
@@ -425,25 +397,26 @@
                 }
             }
 
+            // Toon basisknoppen op basis van touch/desktop status
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
                 document.getElementById('btn-sprint-toggle').style.display = 'block';
                 document.getElementById('btn-mobile-pause').style.display = 'block';
                 document.getElementById('btn-mobile-jump').style.display = 'flex';
-                updateAdminInterfaceVisibility();
+                document.getElementById('btn-flashlight').style.display = 'block';
             } else {
                 document.getElementById('btn-mic-toggle').style.display = 'flex';
                 document.getElementById('btn-flashlight').style.display = 'block';
-                updateAdminInterfaceVisibility();
             }
+            
+            // Toon admin knoppen als je toevallig al ingelogd was
+            updateAdminInterfaceVisibility();
+            
             setupControls(); window.addEventListener('resize', onWindowResize); animate();
         }
 
         function setupControls() {
             const container = document.body;
-            
-            document.addEventListener('pointerlockchange', () => {
-                if (document.pointerLockElement !== container && !isDead) { pauseGame(); }
-            });
+            document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== container && !isDead) pauseGame(); });
 
             window.addEventListener('keydown', (e) => {
                 if (!gameActive || isDead) return;
@@ -453,11 +426,10 @@
                 if(key === 'a') keysPressed.a = true; if(key === 'd') keysPressed.d = true;
                 if(e.key === 'Shift') keysPressed.Shift = true;
                 if(e.key === ' ') handleJumpInput();
-                
                 if(key === 'f') toggleFlashlight();
                 if(key === 'm') toggleMic();
                 
-                // Sneltoetsen werken alleen als je isAdmin bent geverifieerd
+                // Hotkeys worden nu pas uitgevoerd als isAdmin waar is
                 if(isAdmin) {
                     if(e.key === '[') requestToggleAlarm();
                     if(e.key === ']') requestToggleBlackout();
@@ -473,7 +445,6 @@
             });
 
             container.addEventListener('click', () => { if(gameActive && !isPaused && !isDead) container.requestPointerLock(); });
-
             window.addEventListener('mousemove', (e) => {
                 if (document.pointerLockElement !== container || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
@@ -481,10 +452,9 @@
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
-            // Joystick Management
+            // Joystick & Touch Look
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
             let joyTouchId = null, joyStartPos = new THREE.Vector2();
-            
             joyZone.addEventListener('touchstart', (e) => {
                 const touch = e.changedTouches[0]; joyTouchId = touch.identifier;
                 joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block';
