@@ -16,10 +16,11 @@ io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
     
     players[socket.id] = {
-        pos: { x: 3, y: 0, z: 3 },
+        pos: { x: 3, y: 0, z: 3 }, // Base position is on the floor
         rotY: 0,
         color: hexColors[Math.floor(Math.random() * hexColors.length)],
         flashlightOn: false
+    };
     };
 
     socket.emit('currentPlayers', players);
