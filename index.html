@@ -229,16 +229,31 @@
             const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
         }
 
-        async function startGame() {
+        // FIXED: game start nu direct, mic laadt asynchroon op de achtergrond
+        function startGame() {
             document.getElementById('instructions').style.display = 'none';
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            } catch (err) {
-                console.warn("Microphone access denied.", err);
-            }
             gameActive = true; 
             init(); 
             initMultiplayer();
+
+            navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+                .then(stream => {
+                    localStream = stream;
+                    if(micMuted) {
+                        localStream.getAudioTracks().forEach(t => t.enabled = false);
+                    }
+                })
+                .catch(err => console.warn("Microphone access denied or unavailable.", err));
+        }
+
+        function spawnRemotePlayer(id, info) {
+            if (remotePlayers[id]) return;
+            const geo = new THREE.BoxGeometry(0.6, 1.5, 0.6);
+            const mat = new THREE.MeshLambertMaterial({ color: info.color || 0xdcb85c });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(info.pos || new THREE.Vector3(3, 0.75, 3));
+            scene.add(mesh);
+            remotePlayers[id] = mesh;
         }
 
         function initMultiplayer() {
@@ -302,22 +317,22 @@
         }
 
         function toggleMic() {
-            if (!localStream) return;
             micMuted = !micMuted;
-            localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
+            }
             const micBtn = document.getElementById('btn-mic-toggle');
             const micText = document.getElementById('mic-text');
             if (micMuted) { micBtn.classList.add('muted'); micText.innerText = "MIC: MUTED"; } 
             else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
         }
 
-        // --- FIXED ADMIN LOGIN ---
         function checkAdminLogin() {
             const inputEl = document.getElementById('admin-password-input');
             const value = inputEl.value;
             if (value === "260112") {
                 isAdmin = true;
-                inputEl.blur(); // Focus direct weghalen!
+                inputEl.blur(); 
                 document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN ACCESS GRANTED</b>";
                 document.getElementById('admin-help-text').style.display = 'block';
                 updateAdminInterfaceVisibility();
@@ -411,7 +426,6 @@
                 if (!isMobile && document.pointerLockElement !== container && !isDead && !isPaused) pauseGame(); 
             });
 
-            // FIXED SPRINT TOGGLE (Gebruikt e.preventDefault om dubbele events en focus-verlies te blokkeren)
             const sprBtn = document.getElementById('btn-sprint-toggle');
             function triggerSprint(e) {
                 if (e) e.preventDefault();
@@ -427,7 +441,6 @@
             sprBtn.addEventListener('touchstart', triggerSprint, {passive: false});
             sprBtn.addEventListener('click', triggerSprint);
 
-            // FIXED HOTKEYS (Gebruikt e.code in plaats van e.key)
             window.addEventListener('keydown', (e) => {
                 if(document.activeElement === document.getElementById('admin-password-input')) return;
 
@@ -527,4 +540,64 @@
             if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
             if(player.moveDir.length() > 0) {
-                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(
+                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
+                let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
+                moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x);
+                moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
+            }
+
+            let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
+
+            let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
+            testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
+
+            player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
+            if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
+
+            let curEye = DEFAULT_EYE_HEIGHT;
+            if (mag > 0 && player.isGrounded) {
+                player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
+                curEye += Math.sin(player.walkCycle) * settings.bobAmount;
+            }
+
+            camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
+            camera.rotation.y = player.yaw;
+            camera.rotation.x = player.pitch;
+
+            if (alarmActive) {
+                let flashState = Math.sin(time * 0.007) > 0;
+                scene.background.set(flashState ? '#3a0505' : '#1a1811');
+                if (scene.fog) scene.fog.color.set(flashState ? '#3a0505' : '#1a1811');
+            } else {
+                scene.background.set('#1a1811');
+                if (scene.fog) scene.fog.color.set('#1a1811');
+            }
+
+            if (socket && socket.connected) {
+                socket.emit("playerMovement", {
+                    pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
+                    rotY: player.yaw
+                });
+            }
+
+            Object.keys(peers).forEach(id => {
+                const peer = peers[id];
+                const model = remotePlayers[id];
+                if (peer && peer.audioElement && model) {
+                    const distance = camera.position.distanceTo(model.position);
+                    const MaxHearingDistance = 24.0; 
+                    if (distance > MaxHearingDistance) {
+                        peer.audioElement.volume = 0;
+                    } else {
+                        let volFactor = 1 - (distance / MaxHearingDistance);
+                        peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5)));
+                    }
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
