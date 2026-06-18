@@ -24,7 +24,7 @@
         
         #btn-sprint-toggle { top: 20px; left: 20px; }
         
-        /* Admin knoppen: standaard verborgen via display: none */
+        /* Admin knoppen: standaard verborgen */
         .admin-controls { display: none; }
         #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
         #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
@@ -42,7 +42,6 @@
             border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.7);
         }
         
-        /* CSS Microphone Icon Logo */
         .mic-icon {
             position: relative; width: 10px; height: 14px;
             background: currentColor; border-radius: 5px; display: inline-block;
@@ -95,16 +94,21 @@
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
         .setting-row input[type="range"] { width: 140px; accent-color: #dbca8a; }
 
-        #btn-admin-login {
+        /* In-game HTML Admin Login Box */
+        .admin-login-box {
+            margin-top: 15px; border-top: 1px dashed #dbca8a; padding-top: 15px; text-align: center;
+        }
+        .admin-login-box input {
+            width: 80%; padding: 8px; background: #111; color: #fff;
+            border: 1px solid #aa00ff; border-radius: 4px; text-align: center; font-size: 1rem;
+        }
+        #btn-admin-submit {
             background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff;
-            margin-top: 10px; cursor: pointer; padding: 8px 15px; font-weight: bold;
-            border-radius: 6px; border: 2px solid; width: 100%;
+            margin-top: 8px; cursor: pointer; padding: 6px 12px; font-weight: bold;
+            border-radius: 4px; border: 2px solid; width: 87%;
         }
 
-        #vhs-screen-effects {
-            position: absolute; top:0; left:0; width:100%; height:100%;
-            pointer-events: none; z-index: 10; transform: translate(0,0);
-        }
+        #vhs-screen-effects { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
     </style>
 </head>
 <body>
@@ -131,12 +135,16 @@
                 <label for="slider-sens">SENSITIVITY</label>
                 <input type="range" id="slider-sens" min="0.2" max="2.5" step="0.05" value="1.0">
             </div>
-            <button id="btn-admin-login" onclick="promptAdminLogin()">ADMIN LOGIN</button>
+            
+            <div class="admin-login-box" id="admin-box-container">
+                <input type="password" id="admin-password-input" placeholder="ADMIN KEY">
+                <button id="btn-admin-submit" onclick="checkAdminLogin()">SUBMIT</button>
+            </div>
         </div>
         <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
     </div>
     
-    <button id="btn-sprint-toggle" class="ui-btn" onclick="toggleMobileSprint()">RUN: OFF</button>
+    <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
     <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
     <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
         <span class="mic-icon"></span> <span id="mic-text">MIC: ON</span>
@@ -224,7 +232,7 @@
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             } catch (err) {
-                console.warn("Microphone access denied or missing.", err);
+                console.warn("Microphone access denied.", err);
             }
             gameActive = true; 
             init(); 
@@ -260,7 +268,6 @@
                 if (peers[id]) { peers[id].destroy(); delete peers[id]; }
             });
 
-            // Sync Admin Events
             socket.on("sync-alarm", (state) => {
                 alarmActive = state;
                 document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
@@ -302,21 +309,17 @@
             else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
         }
 
-        // --- ADMIN LOGIN LOGICA ---
-        function promptAdminLogin() {
-            const password = prompt("Voer het Admin Wachtwoord in:");
-            if (password === "260112") {
+        // --- IN-GAME HTML LOGIN CHECK ---
+        function checkAdminLogin() {
+            const value = document.getElementById('admin-password-input').value;
+            if (value === "260112") {
                 isAdmin = true;
-                alert("Inloggen succesvol! Admin functionaliteiten ontgrendeld.");
-                
-                document.getElementById('btn-admin-login').innerText = "ADMIN ACTIVE";
-                document.getElementById('btn-admin-login').style.borderColor = "#00ff00";
-                document.getElementById('btn-admin-login').style.color = "#88ff88";
+                document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN ACCESS GRANTED</b>";
                 document.getElementById('admin-help-text').style.display = 'block';
-                
                 updateAdminInterfaceVisibility();
             } else {
-                alert("Onjuist wachtwoord. Toegang geweigerd.");
+                alert("Incorrect key!");
+                document.getElementById('admin-password-input').value = "";
             }
         }
 
@@ -325,19 +328,6 @@
             document.querySelectorAll('.admin-controls').forEach(btn => {
                 btn.style.display = 'block';
             });
-        }
-
-        // --- MOBIELE SPRINT FUNCTIE ---
-        function toggleMobileSprint() {
-            player.mobileSprintOn = !player.mobileSprintOn;
-            const sprintBtn = document.getElementById('btn-sprint-toggle');
-            if(player.mobileSprintOn) {
-                sprintBtn.innerText = "RUN: ON";
-                sprintBtn.style.background = "rgba(219, 202, 138, 0.6)";
-            } else {
-                sprintBtn.innerText = "RUN: OFF";
-                sprintBtn.style.background = "rgba(40, 40, 30, 0.7)";
-            }
         }
 
         function requestToggleAlarm() { if (isAdmin && socket) socket.emit('admin-toggle-alarm', !alarmActive); }
@@ -396,7 +386,6 @@
                 }
             }
 
-            // Toon mobiele knoppen of desktop layout
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
                 document.getElementById('btn-sprint-toggle').style.display = 'block';
                 document.getElementById('btn-mobile-pause').style.display = 'block';
@@ -413,29 +402,43 @@
 
         function setupControls() {
             const container = document.body;
-            document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== container && !isDead) pauseGame(); });
+            document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== container && !isDead && !isPaused) pauseGame(); });
 
-            // GECORRIGEERDE WINDOW KEYDOWN LISTENER (werkt altijd voor de hotkeys)
+            // SPRINT TOGGLE EVENT (Met direct touch-support)
+            const sprBtn = document.getElementById('btn-sprint-toggle');
+            function triggerSprint() {
+                player.mobileSprintOn = !player.mobileSprintOn;
+                if(player.mobileSprintOn) {
+                    sprBtn.innerText = "RUN: ON";
+                    sprBtn.style.background = "rgba(219, 202, 138, 0.6)";
+                } else {
+                    sprBtn.innerText = "RUN: OFF";
+                    sprBtn.style.background = "rgba(40, 40, 30, 0.7)";
+                }
+            }
+            sprBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerSprint(); });
+            sprBtn.addEventListener('click', () => { triggerSprint(); });
+
             window.addEventListener('keydown', (e) => {
+                // Als je in het inlogveld typt, blokkeren we de game-hotkeys tijdelijk
+                if(document.activeElement === document.getElementById('admin-password-input')) return;
+
                 const key = e.key;
-                const lowerKey = key.toLowerCase();
-                
-                if(lowerKey === 'w') keysPressed.w = true; 
-                if(lowerKey === 's') keysPressed.s = true;
-                if(lowerKey === 'a') keysPressed.a = true; 
-                if(lowerKey === 'd') keysPressed.d = true;
+                if(key.toLowerCase() === 'w') keysPressed.w = true; 
+                if(key.toLowerCase() === 's') keysPressed.s = true;
+                if(key.toLowerCase() === 'a') keysPressed.a = true; 
+                if(key.toLowerCase() === 'd') keysPressed.d = true;
                 if(key === 'Shift') keysPressed.Shift = true;
                 if(key === ' ') handleJumpInput();
-                if(lowerKey === 'f') toggleFlashlight();
-                if(lowerKey === 'm') toggleMic();
+                if(key.toLowerCase() === 'f') toggleFlashlight();
+                if(key.toLowerCase() === 'm') toggleMic();
                 
-                // Hotkeys reageren nu direct op e.key vergelijkingen
                 if(isAdmin) {
-                    if(key === '[') { requestToggleAlarm(); e.preventDefault(); }
-                    if(key === ']') { requestToggleBlackout(); e.preventDefault(); }
-                    if(key === '\\') { requestTriggerFlicker(); e.preventDefault(); }
+                    if(key === '[') requestToggleAlarm();
+                    if(key === ']') requestToggleBlackout();
+                    if(key === '\\') requestTriggerFlicker();
                 }
-            }, true); // 'true' forceert prioriteit over andere elementen
+            });
             
             window.addEventListener('keyup', (e) => {
                 const key = e.key;
@@ -447,6 +450,7 @@
             });
 
             container.addEventListener('click', () => { if(gameActive && !isPaused && !isDead) container.requestPointerLock(); });
+            
             window.addEventListener('mousemove', (e) => {
                 if (document.pointerLockElement !== container || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
