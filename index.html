@@ -105,23 +105,11 @@
             position: absolute; top:0; left:0; width:100%; height:100%;
             pointer-events: none; z-index: 10; transform: translate(0,0);
         }
-        #run-warning {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            color: #ff0000; font-weight: bold; font-size: 4rem; display: none;
-            text-shadow: 2px 2px #00ffff, -2px -2px #ff00ff; z-index: 12;
-            letter-spacing: 10px; animation: jitter 0.1s infinite;
-        }
-        @keyframes jitter {
-            0% { transform: translate(-50%, -50%) translate(2px, -1px); }
-            50% { transform: translate(-50%, -50%) translate(-1px, 2px); }
-            100% { transform: translate(-50%, -50%) translate(1px, -2px); }
-        }
     </style>
 </head>
 <body>
 
     <div id="vhs-screen-effects"></div>
-    <div id="run-warning">RUN</div>
 
     <div id="instructions" class="menu-overlay">
         <h1>THE BACKROOMS - Test Place(for now)</h1>
@@ -148,12 +136,7 @@
         <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
     </div>
     
-    <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
-    
-    <button id="btn-alarm" class="ui-btn admin-controls" onclick="requestToggleAlarm()">TOGGLE ALARM</button>
-    <button id="btn-flicker" class="ui-btn admin-controls" onclick="requestTriggerFlicker()">FLICKER</button>
-    <button id="btn-blackout" class="ui-btn admin-controls" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
-    
+    <button id="btn-sprint-toggle" class="ui-btn" onclick="toggleMobileSprint()">RUN: OFF</button>
     <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
     <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
         <span class="mic-icon"></span> <span id="mic-text">MIC: ON</span>
@@ -161,6 +144,10 @@
     
     <button id="btn-mobile-pause" class="ui-btn" onclick="pauseGame()">⏸</button>
     <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
+
+    <button id="btn-alarm" class="ui-btn admin-controls" onclick="requestToggleAlarm()">TOGGLE ALARM</button>
+    <button id="btn-flicker" class="ui-btn admin-controls" onclick="requestTriggerFlicker()">FLICKER</button>
+    <button id="btn-blackout" class="ui-btn admin-controls" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
 
     <div id="joystick-zone"><div id="joystick-base"><div id="joystick-stick"></div></div></div>
     <div id="look-zone"></div>
@@ -315,19 +302,18 @@
             else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
         }
 
-        // --- FIXED ADMIN LOGIN LOGICA ---
+        // --- ADMIN LOGIN LOGICA ---
         function promptAdminLogin() {
             const password = prompt("Voer het Admin Wachtwoord in:");
             if (password === "260112") {
                 isAdmin = true;
-                alert("Inloggen succesvol! Je hebt nu toegang tot de admin functionaliteiten.");
+                alert("Inloggen succesvol! Admin functionaliteiten ontgrendeld.");
                 
                 document.getElementById('btn-admin-login').innerText = "ADMIN ACTIVE";
                 document.getElementById('btn-admin-login').style.borderColor = "#00ff00";
                 document.getElementById('btn-admin-login').style.color = "#88ff88";
                 document.getElementById('admin-help-text').style.display = 'block';
                 
-                // Maak de knoppen direct zichtbaar
                 updateAdminInterfaceVisibility();
             } else {
                 alert("Onjuist wachtwoord. Toegang geweigerd.");
@@ -339,6 +325,19 @@
             document.querySelectorAll('.admin-controls').forEach(btn => {
                 btn.style.display = 'block';
             });
+        }
+
+        // --- MOBIELE SPRINT FUNCTIE ---
+        function toggleMobileSprint() {
+            player.mobileSprintOn = !player.mobileSprintOn;
+            const sprintBtn = document.getElementById('btn-sprint-toggle');
+            if(player.mobileSprintOn) {
+                sprintBtn.innerText = "RUN: ON";
+                sprintBtn.style.background = "rgba(219, 202, 138, 0.6)";
+            } else {
+                sprintBtn.innerText = "RUN: OFF";
+                sprintBtn.style.background = "rgba(40, 40, 30, 0.7)";
+            }
         }
 
         function requestToggleAlarm() { if (isAdmin && socket) socket.emit('admin-toggle-alarm', !alarmActive); }
@@ -397,7 +396,7 @@
                 }
             }
 
-            // Toon basisknoppen op basis van touch/desktop status
+            // Toon mobiele knoppen of desktop layout
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
                 document.getElementById('btn-sprint-toggle').style.display = 'block';
                 document.getElementById('btn-mobile-pause').style.display = 'block';
@@ -408,9 +407,7 @@
                 document.getElementById('btn-flashlight').style.display = 'block';
             }
             
-            // Toon admin knoppen als je toevallig al ingelogd was
             updateAdminInterfaceVisibility();
-            
             setupControls(); window.addEventListener('resize', onWindowResize); animate();
         }
 
@@ -418,30 +415,35 @@
             const container = document.body;
             document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== container && !isDead) pauseGame(); });
 
+            // GECORRIGEERDE WINDOW KEYDOWN LISTENER (werkt altijd voor de hotkeys)
             window.addEventListener('keydown', (e) => {
-                if (!gameActive || isDead) return;
-                const key = e.key.toLowerCase();
+                const key = e.key;
+                const lowerKey = key.toLowerCase();
                 
-                if(key === 'w') keysPressed.w = true; if(key === 's') keysPressed.s = true;
-                if(key === 'a') keysPressed.a = true; if(key === 'd') keysPressed.d = true;
-                if(e.key === 'Shift') keysPressed.Shift = true;
-                if(e.key === ' ') handleJumpInput();
-                if(key === 'f') toggleFlashlight();
-                if(key === 'm') toggleMic();
+                if(lowerKey === 'w') keysPressed.w = true; 
+                if(lowerKey === 's') keysPressed.s = true;
+                if(lowerKey === 'a') keysPressed.a = true; 
+                if(lowerKey === 'd') keysPressed.d = true;
+                if(key === 'Shift') keysPressed.Shift = true;
+                if(key === ' ') handleJumpInput();
+                if(lowerKey === 'f') toggleFlashlight();
+                if(lowerKey === 'm') toggleMic();
                 
-                // Hotkeys worden nu pas uitgevoerd als isAdmin waar is
+                // Hotkeys reageren nu direct op e.key vergelijkingen
                 if(isAdmin) {
-                    if(e.key === '[') requestToggleAlarm();
-                    if(e.key === ']') requestToggleBlackout();
-                    if(e.key === '\\') requestTriggerFlicker();
+                    if(key === '[') { requestToggleAlarm(); e.preventDefault(); }
+                    if(key === ']') { requestToggleBlackout(); e.preventDefault(); }
+                    if(key === '\\') { requestTriggerFlicker(); e.preventDefault(); }
                 }
-            });
+            }, true); // 'true' forceert prioriteit over andere elementen
             
             window.addEventListener('keyup', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w') keysPressed.w = false; if(key === 's') keysPressed.s = false;
-                if(key === 'a') keysPressed.a = false; if(key === 'd') keysPressed.d = false;
-                if(e.key === 'Shift') keysPressed.Shift = false;
+                const key = e.key;
+                if(key.toLowerCase() === 'w') keysPressed.w = false; 
+                if(key.toLowerCase() === 's') keysPressed.s = false;
+                if(key.toLowerCase() === 'a') keysPressed.a = false; 
+                if(key.toLowerCase() === 'd') keysPressed.d = false;
+                if(key === 'Shift') keysPressed.Shift = false;
             });
 
             container.addEventListener('click', () => { if(gameActive && !isPaused && !isDead) container.requestPointerLock(); });
