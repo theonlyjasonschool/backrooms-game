@@ -19,12 +19,13 @@
             border: 2px solid #dbca8a; border-radius: 8px;
             font-weight: bold; font-size: 0.9rem; cursor: pointer;
             box-shadow: 0 0 10px rgba(0,0,0,0.5); display: none; 
+            touch-action: manipulation;
         }
         .ui-btn:active { background: rgba(219, 202, 138, 0.4); }
         
         #btn-sprint-toggle { top: 20px; left: 20px; }
         
-        /* Admin knoppen: standaard verborgen */
+        /* Admin Controls */
         .admin-controls { display: none; }
         #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
         #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
@@ -94,7 +95,7 @@
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
         .setting-row input[type="range"] { width: 140px; accent-color: #dbca8a; }
 
-        /* In-game HTML Admin Login Box */
+        /* HTML Admin Login Box */
         .admin-login-box {
             margin-top: 15px; border-top: 1px dashed #dbca8a; padding-top: 15px; text-align: center;
         }
@@ -116,7 +117,7 @@
     <div id="vhs-screen-effects"></div>
 
     <div id="instructions" class="menu-overlay">
-        <h1>THE BACKROOMS - Test Place(for now)</h1>
+        <h1>THE BACKROOMS - Test Place</h1>
         <p><b>PC Controls:</b> WASD to move. Shift to Run. Space to Jump.</p>
         <p>F: Flashlight | M: Toggle Microphone</p>
         <p id="admin-help-text" style="color: #e0aaff; display: none;">Admin Keys -> [: Alarm | ]: Blackout | \: Chaos Flicker</p>
@@ -169,6 +170,7 @@
         let scene, camera, renderer, socket = null;
         let prevTime = performance.now();
         let gameActive = false, isPaused = false, isDead = false;
+        let isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
@@ -309,17 +311,20 @@
             else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
         }
 
-        // --- IN-GAME HTML LOGIN CHECK ---
+        // --- FIXED ADMIN LOGIN ---
         function checkAdminLogin() {
-            const value = document.getElementById('admin-password-input').value;
+            const inputEl = document.getElementById('admin-password-input');
+            const value = inputEl.value;
             if (value === "260112") {
                 isAdmin = true;
+                inputEl.blur(); // Focus direct weghalen!
                 document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN ACCESS GRANTED</b>";
                 document.getElementById('admin-help-text').style.display = 'block';
                 updateAdminInterfaceVisibility();
             } else {
                 alert("Incorrect key!");
-                document.getElementById('admin-password-input').value = "";
+                inputEl.value = "";
+                inputEl.blur();
             }
         }
 
@@ -335,7 +340,7 @@
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
         function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; document.exitPointerLock(); }
-        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (window.matchMedia("(pointer: fine)").matches) document.body.requestPointerLock(); }
+        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (!isMobile) document.body.requestPointerLock(); }
 
         function toggleFlashlight() { 
             flashlightOn = !flashlightOn; 
@@ -386,7 +391,7 @@
                 }
             }
 
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            if (isMobile) {
                 document.getElementById('btn-sprint-toggle').style.display = 'block';
                 document.getElementById('btn-mobile-pause').style.display = 'block';
                 document.getElementById('btn-mobile-jump').style.display = 'flex';
@@ -402,11 +407,14 @@
 
         function setupControls() {
             const container = document.body;
-            document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== container && !isDead && !isPaused) pauseGame(); });
+            document.addEventListener('pointerlockchange', () => { 
+                if (!isMobile && document.pointerLockElement !== container && !isDead && !isPaused) pauseGame(); 
+            });
 
-            // SPRINT TOGGLE EVENT (Met direct touch-support)
+            // FIXED SPRINT TOGGLE (Gebruikt e.preventDefault om dubbele events en focus-verlies te blokkeren)
             const sprBtn = document.getElementById('btn-sprint-toggle');
-            function triggerSprint() {
+            function triggerSprint(e) {
+                if (e) e.preventDefault();
                 player.mobileSprintOn = !player.mobileSprintOn;
                 if(player.mobileSprintOn) {
                     sprBtn.innerText = "RUN: ON";
@@ -416,43 +424,47 @@
                     sprBtn.style.background = "rgba(40, 40, 30, 0.7)";
                 }
             }
-            sprBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerSprint(); });
-            sprBtn.addEventListener('click', () => { triggerSprint(); });
+            sprBtn.addEventListener('touchstart', triggerSprint, {passive: false});
+            sprBtn.addEventListener('click', triggerSprint);
 
+            // FIXED HOTKEYS (Gebruikt e.code in plaats van e.key)
             window.addEventListener('keydown', (e) => {
-                // Als je in het inlogveld typt, blokkeren we de game-hotkeys tijdelijk
                 if(document.activeElement === document.getElementById('admin-password-input')) return;
 
-                const key = e.key;
-                if(key.toLowerCase() === 'w') keysPressed.w = true; 
-                if(key.toLowerCase() === 's') keysPressed.s = true;
-                if(key.toLowerCase() === 'a') keysPressed.a = true; 
-                if(key.toLowerCase() === 'd') keysPressed.d = true;
-                if(key === 'Shift') keysPressed.Shift = true;
-                if(key === ' ') handleJumpInput();
-                if(key.toLowerCase() === 'f') toggleFlashlight();
-                if(key.toLowerCase() === 'm') toggleMic();
+                const code = e.code;
+                const key = e.key.toLowerCase();
+                
+                if(key === 'w') keysPressed.w = true; 
+                if(key === 's') keysPressed.s = true;
+                if(key === 'a') keysPressed.a = true; 
+                if(key === 'd') keysPressed.d = true;
+                if(e.key === 'Shift') keysPressed.Shift = true;
+                if(e.key === ' ') handleJumpInput();
+                if(key === 'f') toggleFlashlight();
+                if(key === 'm') toggleMic();
                 
                 if(isAdmin) {
-                    if(key === '[') requestToggleAlarm();
-                    if(key === ']') requestToggleBlackout();
-                    if(key === '\\') requestTriggerFlicker();
+                    if(code === 'BracketLeft') requestToggleAlarm();
+                    if(code === 'BracketRight') requestToggleBlackout();
+                    if(code === 'Backslash') requestTriggerFlicker();
                 }
             });
             
             window.addEventListener('keyup', (e) => {
-                const key = e.key;
-                if(key.toLowerCase() === 'w') keysPressed.w = false; 
-                if(key.toLowerCase() === 's') keysPressed.s = false;
-                if(key.toLowerCase() === 'a') keysPressed.a = false; 
-                if(key.toLowerCase() === 'd') keysPressed.d = false;
-                if(key === 'Shift') keysPressed.Shift = false;
+                const key = e.key.toLowerCase();
+                if(key === 'w') keysPressed.w = false; 
+                if(key === 's') keysPressed.s = false;
+                if(key === 'a') keysPressed.a = false; 
+                if(key === 'd') keysPressed.d = false;
+                if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            container.addEventListener('click', () => { if(gameActive && !isPaused && !isDead) container.requestPointerLock(); });
+            container.addEventListener('click', () => { 
+                if(!isMobile && gameActive && !isPaused && !isDead) container.requestPointerLock(); 
+            });
             
             window.addEventListener('mousemove', (e) => {
-                if (document.pointerLockElement !== container || isPaused || isDead) return;
+                if (!isMobile && document.pointerLockElement !== container || isPaused || isDead) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
                 player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
@@ -515,64 +527,4 @@
             if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
             if(player.moveDir.length() > 0) {
-                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
-                let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
-                moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x);
-                moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
-            }
-
-            let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
-            if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
-
-            let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
-            testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
-
-            player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
-            if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
-
-            let curEye = DEFAULT_EYE_HEIGHT;
-            if (mag > 0 && player.isGrounded) {
-                player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
-                curEye += Math.sin(player.walkCycle) * settings.bobAmount;
-            }
-
-            camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
-            camera.rotation.y = player.yaw;
-            camera.rotation.x = player.pitch;
-
-            if (alarmActive) {
-                let flashState = Math.sin(time * 0.007) > 0;
-                scene.background.set(flashState ? '#3a0505' : '#1a1811');
-                if (scene.fog) scene.fog.color.set(flashState ? '#3a0505' : '#1a1811');
-            } else {
-                scene.background.set('#1a1811');
-                if (scene.fog) scene.fog.color.set('#1a1811');
-            }
-
-            if (socket && socket.connected) {
-                socket.emit("playerMovement", {
-                    pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
-                    rotY: player.yaw
-                });
-            }
-
-            Object.keys(peers).forEach(id => {
-                const peer = peers[id];
-                const model = remotePlayers[id];
-                if (peer && peer.audioElement && model) {
-                    const distance = camera.position.distanceTo(model.position);
-                    const MaxHearingDistance = 24.0; 
-                    if (distance > MaxHearingDistance) {
-                        peer.audioElement.volume = 0;
-                    } else {
-                        let volFactor = 1 - (distance / MaxHearingDistance);
-                        peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5)));
-                    }
-                }
-            });
-
-            renderer.render(scene, camera);
-        }
-    </script>
-</body>
-</html>
+                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(
