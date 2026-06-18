@@ -19,35 +19,12 @@ const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
 io.on('connection', (socket) => {
     console.log(`User mapped into matrix zone: ${socket.id}`);
     
-    // Set baseline position directly on the floor structure (y: 0)
+    // Hersteld: Het object wordt nu netjes afgesloten zonder dat andere functies erin verstrikt raken
     players[socket.id] = {
         pos: { x: 3, y: 0, z: 3 },
         rotY: 0,
         color: hexColors[Math.floor(Math.random() * hexColors.length)],
         flashlightOn: false
-            // Forward WebRTC signals directly from one peer to another
-    socket.on('webrtc-signal', (data) => {
-        if (players[data.to]) {
-            io.to(data.to).emit('webrtc-signal', {
-                from: socket.id,
-                signal: data.signal
-                    // Luister naar admin events en stuur ze door naar alle spelers
-    socket.on('admin-toggle-alarm', (state) => {
-        io.emit('sync-alarm', state);
-    });
-
-    socket.on('admin-toggle-blackout', (state) => {
-        io.emit('sync-blackout', state);
-    });
-
-    socket.on('admin-trigger-flicker', () => {
-        io.emit('sync-flicker');
-    });
-
-            });
-        }
-    });
-
     };
 
     // Synchronize network state configurations
@@ -62,6 +39,29 @@ io.on('connection', (socket) => {
             players[socket.id].flashlightOn = movementData.flashlightOn;
             socket.broadcast.emit('playerMoved', { id: socket.id, ...movementData });
         }
+    });
+
+    // Hersteld: WebRTC signalen worden nu keurig op top-level binnen de connectie afgehandeld
+    socket.on('webrtc-signal', (data) => {
+        if (players[data.to]) {
+            io.to(data.to).emit('webrtc-signal', {
+                from: socket.id,
+                signal: data.signal
+            });
+        }
+    });
+
+    // Hersteld: Luister naar admin events en stuur ze correct door naar ALLE spelers (io.emit)
+    socket.on('admin-toggle-alarm', (state) => {
+        io.emit('sync-alarm', state);
+    });
+
+    socket.on('admin-toggle-blackout', (state) => {
+        io.emit('sync-blackout', state);
+    });
+
+    socket.on('admin-trigger-flicker', () => {
+        io.emit('sync-flicker');
     });
 
     socket.on('disconnect', () => {
