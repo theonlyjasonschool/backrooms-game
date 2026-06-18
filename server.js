@@ -25,6 +25,16 @@ io.on('connection', (socket) => {
         rotY: 0,
         color: hexColors[Math.floor(Math.random() * hexColors.length)],
         flashlightOn: false
+            // Forward WebRTC signals directly from one peer to another
+    socket.on('webrtc-signal', (data) => {
+        if (players[data.to]) {
+            io.to(data.to).emit('webrtc-signal', {
+                from: socket.id,
+                signal: data.signal
+            });
+        }
+    });
+
     };
 
     // Synchronize network state configurations
