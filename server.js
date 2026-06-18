@@ -31,6 +31,19 @@ io.on('connection', (socket) => {
             io.to(data.to).emit('webrtc-signal', {
                 from: socket.id,
                 signal: data.signal
+                    // Luister naar admin events en stuur ze door naar alle spelers
+    socket.on('admin-toggle-alarm', (state) => {
+        io.emit('sync-alarm', state);
+    });
+
+    socket.on('admin-toggle-blackout', (state) => {
+        io.emit('sync-blackout', state);
+    });
+
+    socket.on('admin-trigger-flicker', () => {
+        io.emit('sync-flicker');
+    });
+
             });
         }
     });
