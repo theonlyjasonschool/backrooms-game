@@ -95,7 +95,6 @@
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
         .setting-row input[type="range"] { width: 140px; accent-color: #dbca8a; }
 
-        /* HTML Admin Login Box */
         .admin-login-box {
             margin-top: 15px; border-top: 1px dashed #dbca8a; padding-top: 15px; text-align: center;
         }
@@ -234,7 +233,6 @@
             gameActive = true; 
             initMultiplayer();
             
-            // Lock op body aanvragen na een echte klik interactie
             if (!isMobile) {
                 document.body.requestPointerLock();
             }
@@ -246,7 +244,7 @@
                         localStream.getAudioTracks().forEach(t => t.enabled = false);
                     }
                 })
-                .catch(err => console.warn("Microphone access denied or unavailable.", err));
+                .catch(err => console.warn("Microphone access or WebRTC block.", err));
         }
 
         function spawnRemotePlayer(id, info) {
@@ -437,7 +435,6 @@
         }
 
         function setupControls() {
-            // FIX: Luister naar pointerlock op document niveau gekoppeld aan document.body
             document.addEventListener('pointerlockchange', () => { 
                 if (isMobile) return;
                 if (document.pointerLockElement === document.body) {
@@ -465,7 +462,6 @@
             sprBtn.addEventListener('touchstart', triggerSprint, {passive: false});
             sprBtn.addEventListener('click', triggerSprint);
 
-            // FIX: Globaal luisteren naar alle knoppen, Escape direct afhandelen
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' || e.code === 'Escape') {
                     if (!gameActive) return;
@@ -507,7 +503,6 @@
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            // Klik op de pagina vangt de muis opnieuw op mits gestart
             document.body.addEventListener('click', (e) => { 
                 if(!isMobile && gameActive && !isPaused && !isDead) {
                     document.body.requestPointerLock(); 
@@ -637,7 +632,6 @@
             renderer.render(scene, camera);
         }
 
-        // Koppel initialisatie direct aan het laden van de pagina!
         window.onload = init;
     </script>
 </body>
