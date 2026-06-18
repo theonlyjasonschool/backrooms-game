@@ -142,7 +142,12 @@
             walkCycle: 0
         };
 
-        const settings = { smoothing: 0.22, bobSpeed: 12.0, bobAmount: 0.035 };
+        // Tightened smoothing config to remove the "weird/floaty" feel
+        const settings = { 
+            smoothing: 0.4,       // Snappier look tracking
+            bobSpeed: 14.0,       // Faster head bob steps
+            bobAmount: 0.025      // Lowered depth to fix screen jitter
+        };
         const remotePlayers = {};
 
         const keysPressed = { w:false, a:false, s:false, d:false, Shift:false };
@@ -165,7 +170,7 @@
         let fluorescentLights = [], ambientLight;
         let flashlight, flashlightOn = false, alarmActive = false, blackoutActive = false; 
         
-        let audioCtx = null, ambientHumGain = null, entityChaseOsc = null, entityChaseGain = null;
+        let audioCtx = null, ambientHumGain = null;
         let entityActive = false, entityMesh = null;
         const ENTITY_SPEED = 2.4;
 
@@ -223,6 +228,10 @@
             if(renderer) return;
             scene = new THREE.Scene(); scene.background = new THREE.Color('#1a1811'); scene.fog = new THREE.FogExp2('#1a1811', 0.08);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            // Set rotation order to handle FPS movement without flipping out
+            camera.rotation.order = 'YXZ'; 
+
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
@@ -322,7 +331,7 @@
             requestAnimationFrame(animate); if (!gameActive || isPaused || isDead) return;
             const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
 
-            // Smooth Interpolation Lens (LERP)
+            // Smooth Look Interpolation Matrix
             player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
             player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
 
@@ -347,23 +356,26 @@
             let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
             if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
 
+            // Slide against borders smoothly
             let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
             testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
 
             player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
             if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
 
-            // View Head Bob Matrix logic
+            // Head Bob tracking calculation
             let curEye = DEFAULT_EYE_HEIGHT;
             if (mag > 0 && player.isGrounded) {
                 player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
                 curEye += Math.sin(player.walkCycle) * settings.bobAmount;
             }
 
+            // Apply camera transforms cleanly
             camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
-            camera.rotation.set(0, 0, 0); camera.rotation.y = player.yaw; camera.rotation.x = player.pitch;
+            camera.rotation.y = player.yaw;
+            camera.rotation.x = player.pitch;
 
-            // Sync structural loop values out to multiplayer socket room
+            // Sync structural loop values out to multiplayer network
             if (socket && socket.connected) {
                 socket.emit("playerMovement", {
                     pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
