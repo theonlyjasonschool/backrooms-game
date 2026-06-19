@@ -14,99 +14,95 @@
         #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
         
         .ui-btn {
-            position: absolute; z-index: 20; padding: 12px 20px;
+            position: absolute; z-index: 50; padding: 12px 20px;
             background: rgba(40, 40, 30, 0.7); color: #eedc82;
             border: 2px solid #dbca8a; border-radius: 8px;
             font-weight: bold; font-size: 0.9rem; cursor: pointer;
             box-shadow: 0 0 10px rgba(0,0,0,0.5); display: none; 
-            touch-action: manipulation;
+            touch-action: manipulation; pointer-events: auto;
         }
         .ui-btn:active { background: rgba(219, 202, 138, 0.4); }
         
         #btn-sprint-toggle { top: 20px; left: 20px; }
-        
-        /* Admin Controls */
-        .admin-controls { display: none; }
-        #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
-        #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
-        #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
-        
         #btn-flashlight { top: 20px; right: 155px; }
         
-        /* Mic Toggle Button Layout */
         #btn-mic-toggle { 
             top: 20px; right: 90px; padding: 8px 12px; 
             display: flex; align-items: center; justify-content: center; gap: 8px;
             background: rgba(40, 40, 30, 0.7); border-color: #dbca8a; color: #eedc82;
         }
-        #btn-mic-toggle.muted {
-            border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.7);
-        }
+        #btn-mic-toggle.muted { border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.7); }
         
         .mic-icon {
             position: relative; width: 10px; height: 14px;
             background: currentColor; border-radius: 5px; display: inline-block;
         }
         .mic-icon::before {
-            content: ''; position: absolute; top: 4px; left: -3px;
-            width: 14px; height: 10px; border: 2px solid currentColor;
-            border-top: none; border-radius: 0 0 10px 10px; box-sizing: border-box;
+            content: ''; position: absolute; top: 4px; left: -3px; width: 14px; height: 10px; border: 2px solid currentColor; border-top: none; border-radius: 0 0 10px 10px; box-sizing: border-box;
         }
-        .mic-icon::after {
-            content: ''; position: absolute; bottom: -4px; left: 4px;
-            width: 2px; height: 4px; background: currentColor;
-        }
-        #btn-mic-toggle.muted .mic-icon::before {
-            content: ''; position: absolute; top: 6px; left: -5px; width: 18px; height: 2px;
-            background: #ff4444; transform: rotate(45deg); border: none;
-        }
+        .mic-icon::after { content: ''; position: absolute; bottom: -4px; left: 4px; width: 2px; height: 4px; background: currentColor; }
+        #btn-mic-toggle.muted .mic-icon::before { content: ''; position: absolute; top: 6px; left: -5px; width: 18px; height: 2px; background: #ff4444; transform: rotate(45deg); border: none; }
 
         #btn-mobile-pause { top: 20px; right: 20px; padding: 12px 15px; }
-        #btn-mobile-jump {
-            bottom: 40px; right: 40px; width: 70px; height: 70px;
-            border-radius: 50%; padding: 0; justify-content: center; align-items: center;
-        }
+        #btn-mobile-jump { bottom: 40px; right: 40px; width: 70px; height: 70px; border-radius: 50%; padding: 0; justify-content: center; align-items: center; }
 
-        #joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 60%; z-index: 15; }
-        #joystick-base {
-            position: absolute; width: 80px; height: 80px;
-            background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%; display: none; transform: translate(-50%, -50%); pointer-events: none;
-        }
-        #joystick-stick {
-            position: absolute; width: 40px; height: 40px;
-            background: rgba(255, 255, 255, 0.4); border-radius: 50%; top: 20px; left: 20px; pointer-events: none;
-        }
-        #look-zone { position: absolute; bottom: 0; right: 0; width: 50%; height: 100%; z-index: 14; }
+        /* Admin Layout Tools */
+        .admin-controls { display: none; }
+        #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
+        #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
+        #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
+
+        #joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 75%; z-index: 15; pointer-events: auto; }
+        #joystick-base { position: absolute; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4); border-radius: 50%; display: none; transform: translate(-50%, -50%); pointer-events: none; }
+        #joystick-stick { position: absolute; width: 40px; height: 40px; background: rgba(255, 255, 255, 0.4); border-radius: 50%; top: 20px; left: 20px; pointer-events: none; }
+        #look-zone { position: absolute; bottom: 0; right: 0; width: 50%; height: 100%; z-index: 14; pointer-events: auto; }
 
         .menu-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); color: #dbca8a;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; z-index: 30;
+            text-align: center; z-index: 60;
         }
         h1 { font-size: 2.5rem; margin-bottom: 10px; color: #eedc82; text-shadow: 0 0 10px rgba(238,220,130,0.5); }
         p { font-size: 1.1rem; margin: 5px 15px; }
 
+        /* Nickname Input */
+        .nick-input-box { margin: 15px 0; }
+        .nick-input-box input {
+            padding: 12px; font-size: 1.2rem; background: #111; color: #eedc82;
+            border: 2px solid #dbca8a; border-radius: 6px; text-align: center; width: 220px;
+        }
+
+        /* Player List Panel */
+        .player-list-container {
+            margin-top: 15px; background: rgba(10,10,5,0.6);
+            border: 1px solid #dbca8a; border-radius: 6px;
+            max-height: 110px; overflow-y: auto; padding: 8px; width: 90%;
+        }
+        .player-list-item { font-size: 0.95rem; color: #fff; padding: 3px 0; text-align: left; border-bottom: 1px solid rgba(219,202,138,0.2); }
+
         .settings-panel {
             background: rgba(20, 20, 15, 0.85); border: 2px solid #dbca8a;
-            border-radius: 12px; padding: 25px; margin-top: 20px; width: 280px;
+            border-radius: 12px; padding: 25px; margin-top: 10px; width: 300px;
         }
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
         .setting-row input[type="range"] { width: 140px; accent-color: #dbca8a; }
 
-        .admin-login-box {
-            margin-top: 15px; border-top: 1px dashed #dbca8a; padding-top: 15px; text-align: center;
-        }
-        .admin-login-box input {
-            width: 80%; padding: 8px; background: #111; color: #fff;
-            border: 1px solid #aa00ff; border-radius: 4px; text-align: center; font-size: 1rem;
-        }
-        #btn-admin-submit {
-            background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff;
-            margin-top: 8px; cursor: pointer; padding: 6px 12px; font-weight: bold;
-            border-radius: 4px; border: 2px solid; width: 87%;
-        }
+        .admin-login-box { margin-top: 10px; border-top: 1px dashed #dbca8a; padding-top: 10px; text-align: center; }
+        .admin-login-box input { width: 80%; padding: 8px; background: #111; color: #fff; border: 1px solid #aa00ff; border-radius: 4px; text-align: center; font-size: 1rem; }
+        #btn-admin-submit { background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff; margin-top: 8px; cursor: pointer; padding: 6px 12px; font-weight: bold; border-radius: 4px; border: 2px solid; width: 87%; }
+
+        /* Command Centre Layout */
+        #btn-command-trigger { position: absolute; top: 20px; right: 20px; border-color: #aa00ff; color: #e0aaff; display: block; z-index: 70; }
+        #command-centre-overlay { display: none; background: #050508; color: #55ff55; font-family: monospace; flex-direction: row; padding: 20px; box-sizing: border-box; gap: 20px; }
+        .cc-panel { border: 2px solid #22aa22; background: #0a110a; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; }
+        #cc-left { flex: 1; align-items: center; justify-content: center; }
+        #cc-right { width: 320px; justify-content: space-between; }
+        #map-canvas { background: #020502; border: 1px solid #22aa22; box-shadow: 0 0 15px rgba(0,200,0,0.2); }
+        .cc-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 5px #22aa22; border-bottom: 1px solid #22aa22; padding-bottom: 4px; }
+        #cc-cam-view { width: 100%; height: 180px; background: #222; position: relative; overflow: hidden; border: 1px solid #22aa22; }
+        #cc-cam-render { width: 100%; height: 100%; }
+        .cc-cam-overlay { position: absolute; top: 5px; left: 5px; font-size: 0.8rem; color: #55ff55; text-shadow: 1px 1px 2px #000; pointer-events: none; }
 
         #vhs-screen-effects { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
     </style>
@@ -117,11 +113,18 @@
 
     <div id="instructions" class="menu-overlay">
         <h1>THE BACKROOMS - Test Place</h1>
+        
+        <div class="nick-input-box">
+            <input type="text" id="player-nickname-input" placeholder="ENTER NICKNAME" maxlength="14">
+        </div>
+
         <p><b>PC Controls:</b> WASD to move. Shift to Run. Space to Jump.</p>
         <p>F: Flashlight | M: Toggle Microphone</p>
         <p id="admin-help-text" style="color: #e0aaff; display: none;">Admin Keys -> [: Alarm | ]: Blackout | \: Chaos Flicker</p>
         <p><b>Esc</b> to Pause / Release Mouse</p>
-        <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="startGame()">ENTER</button>
+        <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="startGame()">ENTER MATRIX</button>
+        
+        <button id="btn-command-trigger" class="ui-btn" onclick="accessCommandCentre()">COMMAND CENTRE</button>
     </div>
 
     <div id="pause-menu" class="menu-overlay" style="display: none;">
@@ -136,12 +139,38 @@
                 <input type="range" id="slider-sens" min="0.2" max="2.5" step="0.05" value="1.0">
             </div>
             
+            <div style="text-align: left; font-size: 0.85rem; font-weight: bold; margin-top: 5px;">ACTIVE RESEARCHERS:</div>
+            <div class="player-list-container" id="pause-player-list">
+                </div>
+
             <div class="admin-login-box" id="admin-box-container">
                 <input type="password" id="admin-password-input" placeholder="ADMIN KEY">
                 <button id="btn-admin-submit" onclick="checkAdminLogin()">SUBMIT</button>
             </div>
         </div>
-        <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
+        <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="resumeGame()">RESUME</button>
+    </div>
+
+    <div id="command-centre-overlay" class="menu-overlay">
+        <div id="cc-left" class="cc-panel">
+            <div class="cc-title">TACTICAL ZONE MAP</div>
+            <canvas id="map-canvas" width="380" height="300"></canvas>
+        </div>
+        <div id="cc-right" class="cc-panel">
+            <div>
+                <div class="cc-title">SYSTEM MONITOR</div>
+                <p style="color:#fff;">CONNECTED CLIENTS: <span id="cc-player-count" style="color:#55ff55; font-weight:bold;">1</span></p>
+            </div>
+            <div>
+                <div class="cc-title">CCTV CAMERA FEED</div>
+                <div id="cc-cam-view">
+                    <div id="cc-cam-render"></div>
+                    <div class="cc-cam-overlay" id="cc-cam-label">CAM_01 - SECTOR A</div>
+                </div>
+                <button class="ui-btn" style="position:static; margin-top:10px; width:100%; display:block;" onclick="cycleCCCamera()">CYCLE CAMERA</button>
+            </div>
+            <button class="ui-btn" style="position:static; margin-top:15px; border-color:#ff4444; color:#ff8888; display:block;" onclick="exitCommandCentre()">DISCONNECT CC</button>
+        </div>
     </div>
     
     <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
@@ -168,34 +197,20 @@
     <script>
         let scene, camera, renderer, socket = null;
         let prevTime = performance.now();
-        let gameActive = false, isPaused = false, isDead = false;
+        let gameActive = false, isPaused = false, isDead = false, inCommandCentre = false;
         let isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
         let globalVolume = 0.5;
 
-        // Audio Context voor Synthesized SFX
-        let audioCtx = null;
-        let alarmOscillator = null;
-        let alarmGain = null;
-        let nextFootstepTime = 0;
-
-        let localStream = null;
-        let micMuted = false;
-        let isAdmin = false; 
+        let audioCtx = null, alarmOscillator = null, alarmGain = null, nextFootstepTime = 0;
+        let localStream = null, micMuted = false, isAdmin = false; 
         const peers = {}; 
 
-        const player = {
-            pos: new THREE.Vector3(3, DEFAULT_EYE_HEIGHT, 3),
-            targetYaw: 0, targetPitch: 0, yaw: 0, pitch: 0,
-            moveDir: new THREE.Vector2(0, 0), 
-            radius: 0.4, velocityY: 0, isGrounded: true, mobileSprintOn: false,
-            walkCycle: 0
-        };
-
-        const settings = { smoothing: 0.4, bobSpeed: 14.0, bobAmount: 0.025 };
+        let userNickname = "Player";
         const remotePlayers = {};
+        const cachedPlayerStates = {}; // Voor de 2D Command Centre Map
         const keysPressed = { w:false, a:false, s:false, d:false, Shift:false };
         
         const map = [
@@ -217,94 +232,43 @@
         let fluorescentLights = [], ambientLight;
         let flashlight, flashlightOn = false, alarmActive = false, blackoutActive = false; 
 
-        // Sound Generators
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
+        // CC Camera Systeem variabelen
+        let ccCamera, ccCamIndex = 0;
+        const ccCamPositions = [
+            { pos: new THREE.Vector3(4, 3.2, 4), lookAt: new THREE.Vector3(16, 1, 16), label: "CAM_01 - NORTH HALL" },
+            { pos: new THREE.Vector3(56, 3.2, 4), lookAt: new THREE.Vector3(40, 1, 20), label: "CAM_02 - EAST MATRIX" },
+            { pos: new THREE.Vector3(28, 3.2, 24), lookAt: new THREE.Vector3(28, 0, 40), label: "CAM_03 - CENTER ZONE" }
+        ];
 
-        function playClickSound() {
-            if (!audioCtx) return;
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04);
-            gain.gain.setValueAtTime(0.1 * globalVolume, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.04);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.04);
-        }
+        const player = {
+            pos: new THREE.Vector3(3, DEFAULT_EYE_HEIGHT, 3),
+            targetYaw: 0, targetPitch: 0, yaw: 0, pitch: 0,
+            moveDir: new THREE.Vector2(0, 0), radius: 0.4, velocityY: 0, isGrounded: true, mobileSprintOn: false, walkCycle: 0
+        };
 
-        function playFootstepSound(isSprinting) {
-            if (!audioCtx) return;
-            let osc = audioCtx.createOscillator();
-            let gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(isSprinting ? 95 : 75, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime((isSprinting ? 0.25 : 0.15) * globalVolume, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-        }
+        const settings = { smoothing: 0.4, bobSpeed: 14.0, bobAmount: 0.025 };
 
-        function startAlarmSiren() {
-            if (!audioCtx || alarmOscillator) return;
-            alarmOscillator = audioCtx.createOscillator();
-            alarmGain = audioCtx.createGain();
-            alarmOscillator.type = 'sawtooth';
-            alarmOscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
-            alarmGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            alarmOscillator.connect(alarmGain);
-            alarmGain.connect(audioCtx.destination);
-            alarmOscillator.start();
-            updateAlarmSirenLoop();
-        }
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        function playClickSound() { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04); gain.gain.setValueAtTime(0.1 * globalVolume, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.04); }
+        function playFootstepSound(isSprinting) { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(isSprinting ? 95 : 75, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1); gain.gain.setValueAtTime((isSprinting ? 0.25 : 0.15) * globalVolume, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
+        function startAlarmSiren() { if (!audioCtx || alarmOscillator) return; alarmOscillator = audioCtx.createOscillator(); alarmGain = audioCtx.createGain(); alarmOscillator.type = 'sawtooth'; alarmOscillator.frequency.setValueAtTime(220, audioCtx.currentTime); alarmGain.gain.setValueAtTime(0, audioCtx.currentTime); alarmOscillator.connect(alarmGain); alarmGain.connect(audioCtx.destination); alarmOscillator.start(); updateAlarmSirenLoop(); }
+        function updateAlarmSirenLoop() { if (!alarmOscillator || !alarmActive) return; let time = audioCtx.currentTime; alarmOscillator.frequency.linearRampToValueAtTime(340, time + 0.4); alarmOscillator.frequency.linearRampToValueAtTime(220, time + 0.8); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.1); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.4); alarmGain.gain.linearRampToValueAtTime(0, time + 0.8); setTimeout(updateAlarmSirenLoop, 800); }
+        function stopAlarmSiren() { if (alarmOscillator) { try { alarmOscillator.stop(); } catch(e){} alarmOscillator.disconnect(); alarmOscillator = null; alarmGain.disconnect(); alarmGain = null; } }
 
-        function updateAlarmSirenLoop() {
-            if (!alarmOscillator || !alarmActive) return;
-            let time = audioCtx.currentTime;
-            alarmOscillator.frequency.linearRampToValueAtTime(340, time + 0.4);
-            alarmOscillator.frequency.linearRampToValueAtTime(220, time + 0.8);
-            alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.1);
-            alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.4);
-            alarmGain.gain.linearRampToValueAtTime(0, time + 0.8);
-            setTimeout(updateAlarmSirenLoop, 800);
-        }
-
-        function stopAlarmSiren() {
-            if (alarmOscillator) {
-                try { alarmOscillator.stop(); } catch(e){}
-                alarmOscillator.disconnect(); alarmOscillator = null;
-                alarmGain.disconnect(); alarmGain = null;
-            }
-        }
-
-        function createWallpaperTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
-            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#cbb879'; ctx.fillRect(0, 0, 256, 256);
-            ctx.fillStyle = '#beab6c'; for (let i = 0; i < 256; i += 32) ctx.fillRect(i, 0, 4, 256);
-            const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
-        }
-        function createCarpetTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
-            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128);
-            const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
-        }
-        function createCeilingTexture() {
-            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
-            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256);
-            ctx.strokeStyle = '#b5b2a5'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 256, 256);
-            const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture;
-        }
+        function createWallpaperTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#cbb879'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#beab6c'; for (let i = 0; i < 256; i += 32) ctx.fillRect(i, 0, 4, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
+        function createCarpetTexture() { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
+        function createCeilingTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#b5b2a5'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 256, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
 
         function startGame() {
-            initAudio();
-            if (!isMobile) {
-                document.body.requestPointerLock();
+            const nickInput = document.getElementById('player-nickname-input');
+            if(!nickInput.value.trim()) {
+                alert("Please enter a nickname before connecting!");
+                return;
             }
+            userNickname = nickInput.value.trim();
+
+            initAudio();
+            if (!isMobile) document.body.requestPointerLock();
 
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; 
@@ -313,50 +277,39 @@
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
                 .then(stream => {
                     localStream = stream;
-                    if(micMuted) {
-                        localStream.getAudioTracks().forEach(t => t.enabled = false);
-                    }
-                })
-                .catch(err => console.warn("Microphone access or WebRTC block.", err));
+                    if(micMuted) localStream.getAudioTracks().forEach(t => t.enabled = false);
+                }).catch(err => console.warn("Microphone blocked.", err));
         }
 
-        // Bouw een Minecraft Model in plaats van een simpele box
+        function accessCommandCentre() {
+            const pass = prompt("ENTER COMMAND CENTRE PASSWORD:");
+            if(pass === "260112") {
+                inCommandCentre = true;
+                document.getElementById('command-centre-overlay').style.display = 'flex';
+                // Start de 2D Map Render Loop
+                renderCommandCentreMap();
+            } else if(pass !== null) {
+                alert("ACCESS DENIED: INVALID SECURITY KEY.");
+            }
+        }
+
+        function exitCommandCentre() {
+            inCommandCentre = false;
+            document.getElementById('command-centre-overlay').style.display = 'none';
+        }
+
         function createMinecraftModel(skinColor) {
             const group = new THREE.Group();
             const headMat = new THREE.MeshLambertMaterial({ color: 0xffdbac }); 
             const bodyMat = new THREE.MeshLambertMaterial({ color: skinColor });
             const legMat  = new THREE.MeshLambertMaterial({ color: 0x333333 }); 
 
-            // Head (0.4 x 0.4 x 0.4)
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), headMat);
-            head.position.y = 1.3;
-            group.add(head);
-
-            // Torso (0.4 x 0.6 x 0.2)
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), bodyMat);
-            torso.position.y = 0.8;
-            group.add(torso);
-
-            // Left Arm (0.18 x 0.6 x 0.2)
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat);
-            leftArm.position.set(-0.28, 0.8, 0);
-            group.add(leftArm);
-
-            // Right Arm
-            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat);
-            rightArm.position.set(0.28, 0.8, 0);
-            group.add(rightArm);
-
-            // Left Leg (0.18 x 0.5 x 0.2)
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat);
-            leftLeg.position.set(-0.1, 0.25, 0);
-            group.add(leftLeg);
-
-            // Right Leg
-            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat);
-            rightLeg.position.set(0.1, 0.25, 0);
-            group.add(rightLeg);
-
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), headMat); head.position.y = 1.3; group.add(head);
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), bodyMat); torso.position.y = 0.8; group.add(torso);
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat); leftArm.position.set(-0.28, 0.8, 0); group.add(leftArm);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat); rightArm.position.set(0.28, 0.8, 0); group.add(rightArm);
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat); leftLeg.position.set(-0.1, 0.25, 0); group.add(leftLeg);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat); rightLeg.position.set(0.1, 0.25, 0); group.add(rightLeg);
             return group;
         }
 
@@ -366,54 +319,89 @@
             model.position.copy(info.pos || new THREE.Vector3(3, 0, 3));
             scene.add(model);
             remotePlayers[id] = model;
+            
+            cachedPlayerStates[id] = { pos: model.position, nickname: info.nickname || "Unknown", color: info.color };
         }
 
         function initMultiplayer() {
             if (typeof io === 'undefined') return;
             socket = io();
             
+            // Zend de gekozen nickname direct door naar de server matrix
+            socket.emit('joinGame', { nickname: userNickname });
+            
             socket.on("currentPlayers", (players) => { 
                 Object.keys(players).forEach(id => { 
-                    if (id !== socket.id) {
-                        spawnRemotePlayer(id, players[id]); 
-                        createPeer(id, true);
-                    }
+                    if (id !== socket.id) { spawnRemotePlayer(id, players[id]); createPeer(id, true); }
                 }); 
             });
             
             socket.on("newPlayer", (data) => { spawnRemotePlayer(data.id, data.info); });
+            
             socket.on("playerMoved", (data) => { 
                 if (remotePlayers[data.id]) { 
                     remotePlayers[data.id].position.copy(data.pos); 
                     remotePlayers[data.id].rotation.y = data.rotY; 
                 } 
+                cachedPlayerStates[data.id] = { pos: data.pos, nickname: data.nickname || "Onderzoeker", color: data.color };
             });
+
+            socket.on("updatePlayerList", (players) => {
+                const container = document.getElementById('pause-player-list');
+                container.innerHTML = "";
+                let count = 0;
+                Object.keys(players).forEach(id => {
+                    count++;
+                    const div = document.createElement('div');
+                    div.className = "player-list-item";
+                    div.innerText = `• [ID: ${id.substring(0,4)}] ${players[id].nickname} ${id === socket.id ? '(You)' : ''}`;
+                    container.appendChild(div);
+                });
+                document.getElementById('cc-player-count').innerText = count;
+            });
+
             socket.on("webrtc-signal", (data) => {
                 if (!peers[data.from]) createPeer(data.from, false);
                 peers[data.from].signal(data.signal);
             });
+
             socket.on("userDisconnected", (id) => { 
                 if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
                 if (peers[id]) { peers[id].destroy(); delete peers[id]; }
+                delete cachedPlayerStates[id];
             });
 
             socket.on("sync-alarm", (state) => {
                 alarmActive = state;
                 document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
-                if (alarmActive) { startAlarmSiren(); } else { stopAlarmSiren(); }
+                if (alarmActive) startAlarmSiren(); else stopAlarmSiren();
             });
+            
             socket.on("sync-blackout", (state) => {
-                blackoutActive = state;
-                ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
-                fluorescentLights.forEach(light => light.intensity = blackoutActive ? 0 : 1.2);
+                blackoutActive = state; ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
+                if(blackoutActive) fluorescentLights.forEach(light => light.intensity = 0);
+                else if(!alarmActive) fluorescentLights.forEach(light => { light.intensity = 1.2; light.color.set('#fffde8'); });
                 document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
             });
+            
             socket.on("sync-flicker", () => {
                 let count = 0;
                 let interval = setInterval(() => {
                     let state = Math.random() > 0.5;
-                    fluorescentLights.forEach(l => l.intensity = state && !blackoutActive ? 1.2 : 0);
-                    count++; if (count > 8) { clearInterval(interval); fluorescentLights.forEach(l => l.intensity = blackoutActive ? 0 : 1.2); }
+                    fluorescentLights.forEach(l => {
+                        if (blackoutActive) l.intensity = 0;
+                        else if (alarmActive) { l.intensity = state ? 1.5 : 0; l.color.set('#ff0000'); }
+                        else { l.intensity = state ? 1.2 : 0; l.color.set('#fffde8'); }
+                    });
+                    count++; 
+                    if (count > 8) { 
+                        clearInterval(interval); 
+                        fluorescentLights.forEach(l => {
+                            if(blackoutActive) l.intensity = 0;
+                            else if(alarmActive) { l.intensity = 1.5; l.color.set('#ff0000'); }
+                            else { l.intensity = 1.2; l.color.set('#fffde8'); }
+                        }); 
+                    }
                 }, 80);
             });
         }
@@ -429,11 +417,61 @@
             peers[targetId] = peer;
         }
 
+        function renderCommandCentreMap() {
+            if(!inCommandCentre) return;
+            requestAnimationFrame(renderCommandCentreMap);
+
+            const canvas = document.getElementById('map-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0,0, canvas.width, canvas.height);
+
+            const gridScale = 18; 
+            const offsetX = 25, offsetY = 20;
+
+            // Draw 2D Labby/Backroom Muren
+            ctx.fillStyle = "#225522";
+            for(let z=0; z<map.length; z++) {
+                for(let x=0; x<map[z].length; x++) {
+                    if(map[z][x] === 1) {
+                        ctx.fillRect(offsetX + x*gridScale, offsetY + z*gridScale, gridScale-1, gridScale-1);
+                    } else {
+                        ctx.strokeStyle = "rgba(34,170,34,0.15)";
+                        ctx.strokeRect(offsetX + x*gridScale, offsetY + z*gridScale, gridScale, gridScale);
+                    }
+                }
+            }
+
+            // Teken Lokale Speler Stip
+            let localMapX = offsetX + (player.pos.x / UNIT_SIZE) * gridScale;
+            let localMapZ = offsetY + (player.pos.z / UNIT_SIZE) * gridScale;
+            ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(localMapX, localMapZ, 5, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.font = "9px monospace"; ctx.textAlign = "center";
+            ctx.fillText(userNickname, localMapX, localMapZ - 8);
+
+            // Teken Netwerk/Remote Spelers Stippen + Nicknames boven de dots
+            Object.keys(cachedPlayerStates).forEach(id => {
+                let pData = cachedPlayerStates[id];
+                if(!pData.pos) return;
+                let remMapX = offsetX + (pData.pos.x / UNIT_SIZE) * gridScale;
+                let remMapZ = offsetY + (pData.pos.z / UNIT_SIZE) * gridScale;
+
+                ctx.fillStyle = "#ff5555"; ctx.beginPath(); ctx.arc(remMapX, remMapZ, 5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#55ff55"; ctx.font = "9px monospace"; ctx.textAlign = "center";
+                ctx.fillText(pData.nickname, remMapX, remMapZ - 8);
+            });
+        }
+
+        function cycleCCCamera() {
+            ccCamIndex = (ccCamIndex + 1) % ccCamPositions.length;
+            const targetCam = ccCamPositions[ccCamIndex];
+            ccCamera.position.copy(targetCam.pos);
+            ccCamera.lookAt(targetCam.lookAt);
+            document.getElementById('cc-cam-label').innerText = targetCam.label;
+        }
+
         function toggleMic() {
             micMuted = !micMuted;
-            if (localStream) {
-                localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
-            }
+            if (localStream) localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
             const micBtn = document.getElementById('btn-mic-toggle');
             const micText = document.getElementById('mic-text');
             if (micMuted) { micBtn.classList.add('muted'); micText.innerText = "MIC: MUTED"; } 
@@ -442,56 +480,29 @@
 
         function checkAdminLogin() {
             const inputEl = document.getElementById('admin-password-input');
-            const value = inputEl.value;
-            if (value === "260112") {
-                isAdmin = true;
-                inputEl.blur(); 
+            if (inputEl.value === "260112") {
+                isAdmin = true; inputEl.blur(); 
                 document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN ACCESS GRANTED</b>";
                 document.getElementById('admin-help-text').style.display = 'block';
                 updateAdminInterfaceVisibility();
             } else {
-                alert("Incorrect key!");
-                inputEl.value = "";
-                inputEl.blur();
+                alert("Incorrect key!"); inputEl.value = ""; inputEl.blur();
             }
         }
 
         function updateAdminInterfaceVisibility() {
             if (!isAdmin) return;
-            document.querySelectorAll('.admin-controls').forEach(btn => {
-                btn.style.display = 'block';
-            });
+            document.querySelectorAll('.admin-controls').forEach(btn => { btn.style.display = 'block'; });
         }
 
         function requestToggleAlarm() { if (isAdmin && socket) socket.emit('admin-toggle-alarm', !alarmActive); }
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        function pauseGame() { 
-            if (!gameActive || isPaused || isDead) return; 
-            isPaused = true; 
-            document.getElementById('pause-menu').style.display = 'flex'; 
-            if (document.pointerLockElement === document.body) {
-                document.exitPointerLock(); 
-            }
-        }
-        
-        function resumeGame() { 
-            isPaused = false; 
-            document.getElementById('pause-menu').style.display = 'none'; 
-            prevTime = performance.now(); 
-            if (!isMobile) {
-                document.body.requestPointerLock();
-            }
-        }
+        function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; if (document.pointerLockElement === document.body) document.exitPointerLock(); }
+        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (!isMobile) document.body.requestPointerLock(); }
 
-        function toggleFlashlight() { 
-            playClickSound();
-            flashlightOn = !flashlightOn; 
-            flashlight.intensity = flashlightOn ? 3.5 : 0;
-            document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF");
-        }
-
+        function toggleFlashlight() { playClickSound(); flashlightOn = !flashlightOn; flashlight.intensity = flashlightOn ? 3.5 : 0; document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF"); }
         function handleJumpInput() { if (player.isGrounded) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
 
         function init() {
@@ -501,6 +512,10 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // CCTV Camera setup voor Command Centre Feed container
+            ccCamera = new THREE.PerspectiveCamera(60, 320 / 180, 0.1, 100);
+            ccCamera.position.copy(ccCamPositions[0].pos); ccCamera.lookAt(ccCamPositions[0].lookAt);
 
             ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
             
@@ -518,131 +533,77 @@
                         const wall = new THREE.Mesh(new THREE.BoxGeometry(UNIT_SIZE, WALL_HEIGHT, UNIT_SIZE), wallMat);
                         wall.position.set(x * UNIT_SIZE, WALL_HEIGHT / 2, z * UNIT_SIZE); scene.add(wall);
                     } else {
-                        const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat);
-                        floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
-                        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat);
-                        ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
+                        const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
+                        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
                         
                         if ((x % 3 === 0) && (z % 3 === 0)) {
-                            let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'}));
-                            lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
-                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
-                            light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
-                            scene.add(light); fluorescentLights.push(light);
+                            let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'})); lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
+                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2); light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE); scene.add(light); fluorescentLights.push(light);
                         }
                     }
                 }
             }
 
             if (isMobile) {
-                document.getElementById('btn-sprint-toggle').style.display = 'block';
-                document.getElementById('btn-mobile-pause').style.display = 'block';
-                document.getElementById('btn-mobile-jump').style.display = 'flex';
-                document.getElementById('btn-flashlight').style.display = 'block';
+                document.getElementById('btn-sprint-toggle').style.display = 'block'; document.getElementById('btn-mobile-pause').style.display = 'block'; document.getElementById('btn-mobile-jump').style.display = 'flex'; document.getElementById('btn-flashlight').style.display = 'block';
             } else {
-                document.getElementById('btn-mic-toggle').style.display = 'flex';
-                document.getElementById('btn-flashlight').style.display = 'block';
+                document.getElementById('btn-mic-toggle').style.display = 'flex'; document.getElementById('btn-flashlight').style.display = 'block';
             }
             
             setupControls(); 
-            
-            // Volume control slider handler
-            document.getElementById('slider-volume').addEventListener('input', (e) => {
-                globalVolume = parseFloat(e.target.value);
-            });
-
+            document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); });
             window.addEventListener('resize', onWindowResize); animate();
         }
 
         function setupControls() {
             document.addEventListener('pointerlockchange', () => { 
                 if (isMobile) return;
-                if (document.pointerLockElement === document.body) {
-                    isPaused = false;
-                    document.getElementById('pause-menu').style.display = 'none';
-                } else {
-                    if (gameActive && !isDead) {
-                        pauseGame();
-                    }
-                }
+                if (document.pointerLockElement !== document.body && gameActive && !isDead && !inCommandCentre) pauseGame();
             });
 
             document.getElementById('canvas-container').addEventListener('click', () => {
-                if (!isMobile && gameActive && !isPaused && !isDead) {
-                    document.body.requestPointerLock();
-                }
+                if (!isMobile && gameActive && !isPaused && !isDead && !inCommandCentre) document.body.requestPointerLock();
             });
 
             const sprBtn = document.getElementById('btn-sprint-toggle');
-            function triggerSprint(e) {
-                if (e) e.preventDefault();
-                player.mobileSprintOn = !player.mobileSprintOn;
-                if(player.mobileSprintOn) {
-                    sprBtn.innerText = "RUN: ON";
-                    sprBtn.style.background = "rgba(219, 202, 138, 0.6)";
-                } else {
-                    sprBtn.innerText = "RUN: OFF";
-                    sprBtn.style.background = "rgba(40, 40, 30, 0.7)";
-                }
-            }
-            sprBtn.addEventListener('touchstart', triggerSprint, {passive: false});
-            sprBtn.addEventListener('click', triggerSprint);
+            function triggerSprint(e) { if (e) e.preventDefault(); player.mobileSprintOn = !player.mobileSprintOn; if(player.mobileSprintOn) { sprBtn.innerText = "RUN: ON"; sprBtn.style.background = "rgba(219, 202, 138, 0.6)"; } else { sprBtn.innerText = "RUN: OFF"; sprBtn.style.background = "rgba(40, 40, 30, 0.7)"; } }
+            sprBtn.addEventListener('touchstart', triggerSprint, {passive: false}); sprBtn.addEventListener('click', triggerSprint);
 
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' || e.code === 'Escape') {
                     if (!gameActive) return;
-                    if (isPaused) { resumeGame(); } else { pauseGame(); }
+                    if (isPaused) resumeGame(); else pauseGame();
                     return;
                 }
+                if(document.activeElement === document.getElementById('admin-password-input') || document.activeElement === document.getElementById('player-nickname-input')) return;
 
-                if(document.activeElement === document.getElementById('admin-password-input')) return;
-
-                const code = e.code;
-                const key = e.key.toLowerCase();
-                
-                if(key === 'w') keysPressed.w = true; 
-                if(key === 's') keysPressed.s = true;
-                if(key === 'a') keysPressed.a = true; 
-                if(key === 'd') keysPressed.d = true;
-                if(e.key === 'Shift') keysPressed.Shift = true;
-                if(e.key === ' ') handleJumpInput();
-                if(key === 'f') toggleFlashlight();
-                if(key === 'm') toggleMic();
+                const code = e.code; const key = e.key.toLowerCase();
+                if(key === 'w') keysPressed.w = true; if(key === 's') keysPressed.s = true; if(key === 'a') keysPressed.a = true; if(key === 'd') keysPressed.d = true;
+                if(e.key === 'Shift') keysPressed.Shift = true; if(e.key === ' ') handleJumpInput(); if(key === 'f') toggleFlashlight(); if(key === 'm') toggleMic();
                 
                 if(isAdmin) {
-                    if(code === 'BracketLeft') requestToggleAlarm();
-                    if(code === 'BracketRight') requestToggleBlackout();
-                    if(code === 'Backslash') requestTriggerFlicker();
+                    if(code === 'BracketLeft') requestToggleAlarm(); if(code === 'BracketRight') requestToggleBlackout(); if(code === 'Backslash') requestTriggerFlicker();
                 }
             });
             
             window.addEventListener('keyup', (e) => {
                 const key = e.key.toLowerCase();
-                if(key === 'w') keysPressed.w = false; 
-                if(key === 's') keysPressed.s = false;
-                if(key === 'a') keysPressed.a = false; 
-                if(key === 'd') keysPressed.d = false;
+                if(key === 'w') keysPressed.w = false; if(key === 's') keysPressed.s = false; if(key === 'a') keysPressed.a = false; if(key === 'd') keysPressed.d = false;
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
 
-            document.body.addEventListener('click', (e) => { 
-                if(e.target.id === 'admin-password-input' || e.target.id === 'btn-admin-submit') return;
-                if(!isMobile && gameActive && !isPaused && !isDead) {
-                    document.body.requestPointerLock(); 
-                }
-            });
-            
             window.addEventListener('mousemove', (e) => {
-                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead) return;
-                player.targetYaw -= e.movementX * 0.002 * lookSensitivity;
-                player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
+                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead || inCommandCentre) return;
+                player.targetYaw -= e.movementX * 0.002 * lookSensitivity; player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
-            // Joystick & Touch Look
+            // Joystick setup (Zorgt dat UI knoppen niet beïnvloed worden)
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
             let joyTouchId = null, joyStartPos = new THREE.Vector2();
+            
             joyZone.addEventListener('touchstart', (e) => {
+                if(e.target.classList.contains('ui-btn')) return;
                 const touch = e.changedTouches[0]; joyTouchId = touch.identifier;
                 joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block';
                 joyBase.style.left = `${touch.clientX}px`; joyBase.style.top = `${touch.clientY}px`;
@@ -653,23 +614,22 @@
                         let dist = new THREE.Vector2(touch.clientX, touch.clientY).distanceTo(joyStartPos);
                         let angle = Math.atan2(touch.clientY - joyStartPos.y, touch.clientX - joyStartPos.x);
                         let moveDist = Math.min(dist, 40);
-                        joyStick.style.left = `${20 + Math.cos(angle) * moveDist}px`;
-                        joyStick.style.top = `${20 + Math.sin(angle) * moveDist}px`;
+                        joyStick.style.left = `${20 + Math.cos(angle) * moveDist}px`; joyStick.style.top = `${20 + Math.sin(angle) * moveDist}px`;
                         player.moveDir.set((Math.cos(angle)*moveDist)/40, -(Math.sin(angle)*moveDist)/40);
                     }
                 }
             });
-            joyZone.addEventListener('touchend', () => { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); });
+            joyZone.addEventListener('touchend', (e) => {
+                for (let touch of e.changedTouches) { if (touch.identifier === joyTouchId) { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); } }
+            });
 
             const lookZone = document.getElementById('look-zone'); let lookTouchId = null, lookLastPos = new THREE.Vector2();
-            lookZone.addEventListener('touchstart', (e) => { const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); });
+            lookZone.addEventListener('touchstart', (e) => { if(e.target.classList.contains('ui-btn')) return; const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); });
             lookZone.addEventListener('touchmove', (e) => {
                 for (let touch of e.changedTouches) {
                     if (touch.identifier === lookTouchId) {
-                        player.targetYaw -= (touch.clientX - lookLastPos.x) * 0.006 * lookSensitivity;
-                        player.targetPitch -= (touch.clientY - lookLastPos.y) * 0.006 * lookSensitivity;
-                        player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
-                        lookLastPos.set(touch.clientX, touch.clientY);
+                        player.targetYaw -= (touch.clientX - lookLastPos.x) * 0.006 * lookSensitivity; player.targetPitch -= (touch.clientY - lookLastPos.y) * 0.006 * lookSensitivity;
+                        player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch)); lookLastPos.set(touch.clientX, touch.clientY);
                     }
                 }
             });
@@ -680,86 +640,95 @@
         function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
         function animate() {
-            requestAnimationFrame(animate); if (!gameActive || isPaused || isDead) return;
+            requestAnimationFrame(animate);
             const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
 
-            player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
-            player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
+            if (gameActive && !isPaused && !isDead) {
+                player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
+                player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
 
-            let running = keysPressed.Shift || player.mobileSprintOn;
-            let moveSpeed = running ? 5.2 : 2.8;
-            let moveX = 0, moveZ = 0;
+                let running = keysPressed.Shift || player.mobileSprintOn;
+                let moveSpeed = running ? 5.2 : 2.8;
+                let moveX = 0, moveZ = 0;
 
-            if (keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
-            if (keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
-            if (keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
-            if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
+                if (keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
+                if (keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
+                if (keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
+                if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
-            if(player.moveDir.length() > 0) {
-                let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
-                let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
-                moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x);
-                moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
-            }
+                if(player.moveDir.length() > 0) {
+                    let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
+                    let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
+                    moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x); moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
+                }
 
-            let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
-            if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
+                let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
 
-            let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
-            testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
+                let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
+                testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
 
-            player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
-            if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
+                player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
+                if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
 
-            let curEye = DEFAULT_EYE_HEIGHT;
-            if (mag > 0 && player.isGrounded) {
-                player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
-                curEye += Math.sin(player.walkCycle) * settings.bobAmount;
+                let curEye = DEFAULT_EYE_HEIGHT;
+                if (mag > 0 && player.isGrounded) {
+                    player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
+                    curEye += Math.sin(player.walkCycle) * settings.bobAmount;
+                    if (time > nextFootstepTime) { playFootstepSound(running); nextFootstepTime = time + (running ? 280 : 420); }
+                }
 
-                // Footstep geluiden triggeren op basis van de walkCycle
-                if (time > nextFootstepTime) {
-                    playFootstepSound(running);
-                    nextFootstepTime = time + (running ? 280 : 420); 
+                camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
+                camera.rotation.y = player.yaw; camera.rotation.x = player.pitch;
+
+                if (socket && socket.connected) {
+                    socket.emit("playerMovement", {
+                        pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
+                        rotY: player.yaw,
+                        color: 0xdcb85c
+                    });
                 }
             }
 
-            camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
-            camera.rotation.y = player.yaw;
-            camera.rotation.x = player.pitch;
-
+            // Sync alarm verlichting effecten
             if (alarmActive) {
                 let flashState = Math.sin(time * 0.007) > 0;
                 scene.background.set(flashState ? '#3a0505' : '#1a1811');
                 if (scene.fog) scene.fog.color.set(flashState ? '#3a0505' : '#1a1811');
+                fluorescentLights.forEach(l => { if (blackoutActive) l.intensity = 0; else { l.intensity = flashState ? 1.5 : 0.1; l.color.set('#ff0000'); } });
             } else {
-                scene.background.set('#1a1811');
-                if (scene.fog) scene.fog.color.set('#1a1811');
+                scene.background.set('#1a1811'); if (scene.fog) scene.fog.color.set('#1a1811');
+                if (!blackoutActive) fluorescentLights.forEach(l => { l.intensity = 1.2; l.color.set('#fffde8'); });
             }
 
-            if (socket && socket.connected) {
-                // Stuur exacte positie naar de server (gecorrigeerd naar de vloer voor andere spelers)
-                socket.emit("playerMovement", {
-                    pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
-                    rotY: player.yaw
-                });
-            }
-
+            // Peer-to-Peer volume falloff handling
             Object.keys(peers).forEach(id => {
-                const peer = peers[id];
-                const model = remotePlayers[id];
+                const peer = peers[id]; const model = remotePlayers[id];
                 if (peer && peer.audioElement && model) {
-                    const distance = camera.position.distanceTo(model.position);
-                    const MaxHearingDistance = 24.0; 
-                    if (distance > MaxHearingDistance) {
-                        peer.audioElement.volume = 0;
-                    } else {
-                        let volFactor = 1 - (distance / MaxHearingDistance);
-                        peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5))) * globalVolume;
-                    }
+                    const distance = camera.position.distanceTo(model.position); const MaxHearingDistance = 24.0; 
+                    if (distance > MaxHearingDistance) peer.audioElement.volume = 0;
+                    else { let volFactor = 1 - (distance / MaxHearingDistance); peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5))) * globalVolume; }
                 }
             });
 
-            renderer.render(scene, camera);
+            // Dubbele Viewport Render voor CCTV Camera Monitor Feed in Command Centre
+            if (inCommandCentre) {
+                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                renderer.render(scene, camera);
+
+                // Teken de kleine camera monitor feed in de box rechtsonder
+                const camBox = document.getElementById('cc-cam-view');
+                const rect = camBox.getBoundingClientRect();
+                renderer.setScissorTest(true);
+                renderer.setViewport(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                renderer.setScissor(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                
+                renderer.render(scene, ccCamera);
+                renderer.setScissorTest(false);
+            } else {
+                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                renderer.render(scene, camera);
+            }
         }
 
         window.onload = init;
