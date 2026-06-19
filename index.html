@@ -84,16 +84,16 @@
             border: 2px solid #dbca8a; border-radius: 6px; text-align: center; width: 220px;
         }
 
-        /* Responsive Pause Grid Layout */
+        /* Fixed Pause Grid Layout */
         .pause-layout {
-            display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; max-width: 950px; margin: 15px 0;
+            display: flex; flex-direction: row; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; max-width: 950px; margin: 15px 0;
         }
         .pause-column-left, .settings-panel, .admin-panel-right {
             background: rgba(20, 20, 15, 0.95); border: 2px solid #dbca8a; border-radius: 10px;
             padding: 15px; width: 280px; min-height: 240px; display: flex; flex-direction: column;
         }
         
-        /* State for hidden admin panel */
+        /* State for hidden admin panel - uses explicit opacity/visibility to prevent layout breaks */
         .admin-panel-right { border-color: #aa00ff; display: none; }
         .admin-panel-right h3 { color: #e0aaff; margin: 0 0 10px 0; font-size: 1rem; letter-spacing: 1px; }
 
@@ -108,7 +108,6 @@
         .admin-login-box input { width: 100%; padding: 6px; background: #111; color: #fff; border: 1px solid #aa00ff; border-radius: 4px; text-align: center; }
         #btn-admin-submit { background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff; margin-top: 6px; cursor: pointer; padding: 6px; font-weight: bold; border-radius: 4px; border: 2px solid; width: 100%; }
 
-        /* Admin Quick Action Button Styles */
         .admin-action-btn {
             background: rgba(30, 10, 40, 0.8); border: 2px solid #aa00ff; color: #e0aaff;
             padding: 8px; font-size: 0.8rem; border-radius: 4px; font-weight: bold; cursor: pointer; margin-bottom: 8px; width: 100%;
@@ -246,7 +245,6 @@
         let dpadLeftPressed = false;
         let gamepadSprintActive = false;
 
-        // Admin Modifiers
         let adminFlyMode = false;
         let adminSpeedMultiplier = 1.0;
 
@@ -270,7 +268,6 @@
         let flashlight, flashlightOn = false, alarmActive = false, blackoutActive = false; 
 
         let ccCamera, ccCamIndex = 0;
-        // Rigide posities gekoppeld aan de werkelijke coördinaten matrix (UNIT_SIZE = 4)
         const ccCamPositions = [
             { pos: new THREE.Vector3(4 * UNIT_SIZE, 3.2, 2 * UNIT_SIZE), lookAt: new THREE.Vector3(8 * UNIT_SIZE, 1.2, 4 * UNIT_SIZE), label: "CAM_01 - NORTH SECTOR" },
             { pos: new THREE.Vector3(14 * UNIT_SIZE, 3.2, 4 * UNIT_SIZE), lookAt: new THREE.Vector3(10 * UNIT_SIZE, 1.0, 8 * UNIT_SIZE), label: "CAM_02 - EAST HALLWAY" },
@@ -310,7 +307,7 @@
             if (!isMobile) document.body.requestPointerLock();
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-                .then(stream => { localStream = stream; if(micMuted) localStream.getAudioTracks().forEach(t => t.enabled = false); })
+                .then(stream => { localStream = stream; if(micMuted) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted); })
                 .catch(err => console.warn("Microphone details missing.", err));
         }
 
@@ -438,7 +435,6 @@
             if (pauseBtn) pauseBtn.style.display = 'inline-flex';
         }
 
-        // CORRECTED CALCULATIONS FOR REAL TIME MAP TRACKING
         function renderCommandCentreMap() {
             if(!inCommandCentre) return; requestAnimationFrame(renderCommandCentreMap);
             const canvas = document.getElementById('map-canvas'); const ctx = canvas.getContext('2d');
@@ -452,7 +448,6 @@
                 }
             }
 
-            // Realtime transformatie op basis van de absolute wereldpositie gedeeld door UNIT_SIZE
             let lx = offsetX + ((player.pos.x + UNIT_SIZE/2) / UNIT_SIZE) * gridScale;
             let lz = offsetX + ((player.pos.z + UNIT_SIZE/2) / UNIT_SIZE) * gridScale;
             ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(lx, lz, 5, 0, Math.PI*2); ctx.fill();
@@ -473,7 +468,7 @@
 
         function toggleMic() { micMuted = !micMuted; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted); document.getElementById('btn-mic-toggle').classList.toggle('muted', micMuted); }
         
-        // ADMIN LOGIN GRANTS ACCESS TO PANEL
+        // FIXED ADMIN LOGIN DISP SYSTEM
         function checkAdminLogin() { 
             if (document.getElementById('admin-password-input').value === "260112") { 
                 isAdmin = true; 
@@ -481,11 +476,14 @@
                 document.getElementById('btn-alarm').style.display='inline-flex'; 
                 document.getElementById('btn-flicker').style.display='inline-flex'; 
                 document.getElementById('btn-blackout').style.display='inline-flex';
-                document.getElementById('admin-rights-panel').style.display = 'flex'; // Toon rechter adminpaneel
-            } 
+                
+                // FORCE OVERRIDE DISPLAY PROPERTY FOR RIGID PAUSE SCREEN LAYOUT
+                document.getElementById('admin-rights-panel').style.setProperty('display', 'flex', 'important');
+            } else {
+                alert("INVALID KEY!");
+            }
         }
 
-        /* --- ADMIN FUNCTIONALITIES ENGINE --- */
         function toggleAdminFly() {
             adminFlyMode = !adminFlyMode;
             document.getElementById('btn-admin-fly').innerText = "FLY MODE: " + (adminFlyMode ? "ON" : "OFF");
@@ -498,8 +496,7 @@
         }
         function triggerAdminExplode() {
             playClickSound();
-            if(socket) socket.emit('admin-trigger-flicker'); // Trigger visueel effect via server sync
-            let origFog = scene.fog.color.getHex();
+            if(socket) socket.emit('admin-trigger-flicker'); 
             scene.background.setHex(0xffaa00);
             setTimeout(() => { scene.background.setHex(0x1a1811); }, 150);
         }
@@ -551,7 +548,17 @@
             if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; activateResponsiveUI(); }
             setupControls();
             
-            document.getElementById('btn-sprint-toggle').addEventListener('click', () => { player.mobileSprintOn = !player.mobileSprintOn; });
+            // FIXED RUN BUTTON INTERACTION MECHANIC FOR MOBILE
+            const runToggleBtn = document.getElementById('btn-sprint-toggle');
+            runToggleBtn.addEventListener('touchstart', (e) => { 
+                e.stopPropagation(); // Voorkomt dat de touch-look engine de input blokkeert!
+                player.mobileSprintOn = !player.mobileSprintOn; 
+            });
+            runToggleBtn.addEventListener('click', (e) => { 
+                e.stopPropagation();
+                player.mobileSprintOn = !player.mobileSprintOn; 
+            });
+
             document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); });
             document.getElementById('slider-sens').addEventListener('input', (e) => { lookSensitivity = parseFloat(e.target.value); });
             document.getElementById('slider-admin-speed').addEventListener('input', (e) => { adminSpeedMultiplier = parseFloat(e.target.value); });
@@ -600,9 +607,12 @@
             joyZone.addEventListener('touchend', () => { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); });
 
             const lookZone = document.getElementById('look-zone'); let lookTouchId = null, lookLastPos = new THREE.Vector2();
-            lookZone.addEventListener('touchstart', (e) => { if(e.target.classList.contains('ui-btn')) return; const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); });
+            lookZone.addEventListener('touchstart', (e) => { 
+                if(e.target.classList.contains('ui-btn') || e.target.closest('.top-ui-cluster')) return; 
+                const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); 
+            });
             lookZone.addEventListener('touchmove', (e) => {
-                if (isPaused) return;
+                if (isPaused || lookTouchId === null) return;
                 for (let touch of e.changedTouches) {
                     if (touch.identifier === lookTouchId) {
                         let deltaX = touch.clientX - lookLastPos.x; let deltaY = touch.clientY - lookLastPos.y;
@@ -615,7 +625,7 @@
         }
 
         function checkGridCollision(pos) { 
-            if(adminFlyMode) return false; // Geen collision checking tijdens vliegen!
+            if(adminFlyMode) return false; 
             let gx = Math.floor((pos.x + UNIT_SIZE/2) / UNIT_SIZE); 
             let gz = Math.floor((pos.z + UNIT_SIZE/2) / UNIT_SIZE); 
             if (gz >= 0 && gz < map.length && gx >= 0 && gx < map[gz].length) return map[gz][gx] === 1; 
@@ -637,7 +647,6 @@
                 const runBtn = document.getElementById('btn-sprint-toggle');
                 if(runBtn && runBtn.style.display !== 'none') runBtn.innerText = "RUN: " + (running ? "ON" : "OFF");
 
-                // Snelheid inclusief admin-vermenigvuldiger
                 let moveSpeed = (running ? 5.4 : 2.8) * adminSpeedMultiplier;
                 let moveX = 0, moveZ = 0;
 
@@ -657,7 +666,6 @@
                 let testPos = player.pos.clone(); testPos.x += moveX; if (!checkGridCollision(testPos)) player.pos.x += moveX;
                 testPos = player.pos.clone(); testPos.z += moveZ; if (!checkGridCollision(testPos)) player.pos.z += moveZ;
 
-                // Fly-mode verticale verplaatsing via Q (omlaag) en E / Spatie (omhoog)
                 if (adminFlyMode) {
                     if (window.keysPressed.e) player.pos.y += 3.0 * delta;
                     if (window.keysPressed.q) player.pos.y -= 3.0 * delta;
@@ -684,15 +692,12 @@
                 }
             }
 
-            // CCTV CAMERA LOOK-AT LOGIC FIX
             if (inCommandCentre) {
-                // Eerst de hoofdscène op de achtergrond renderen
                 renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.render(scene, camera);
                 
                 const camBox = document.getElementById('cc-cam-view'); 
                 if(camBox) {
                     const rect = camBox.getBoundingClientRect();
-                    // Zorg dat de camera live focust op de actieve lookAt vectors
                     ccCamera.lookAt(ccCamPositions[ccCamIndex].lookAt);
                     
                     renderer.setScissorTest(true); 
