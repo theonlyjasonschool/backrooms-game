@@ -16,7 +16,6 @@ const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
 io.on('connection', (socket) => {
     console.log(`User mapped into matrix zone: ${socket.id}`);
     
-    // De basisregistratie wacht nu tot de client 'joinGame' triggert met een nickname
     socket.on('joinGame', (data) => {
         players[socket.id] = {
             pos: { x: 3, y: 0, z: 3 },
@@ -26,7 +25,6 @@ io.on('connection', (socket) => {
             nickname: data.nickname || "Unregistered"
         };
 
-        // Synchroniseer de nieuwe speler naar iedereen en vice versa
         socket.emit('currentPlayers', players);
         socket.broadcast.emit('newPlayer', { id: socket.id, info: players[socket.id] });
         io.emit('updatePlayerList', players);
@@ -36,13 +34,13 @@ io.on('connection', (socket) => {
         if (players[socket.id]) {
             players[socket.id].pos = movementData.pos;
             players[socket.id].rotY = movementData.rotY;
-            players[socket.id].flashlightOn = movementData.flashlightOn;
             
-            // Stuur de update inclusief nickname door voor de Command Centre kaart
             socket.broadcast.emit('playerMoved', { 
                 id: socket.id, 
                 nickname: players[socket.id].nickname,
-                ...movementData 
+                color: players[socket.id].color,
+                pos: movementData.pos,
+                rotY: movementData.rotY
             });
         }
     });
@@ -56,7 +54,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Admin Events
     socket.on('admin-toggle-alarm', (state) => { io.emit('sync-alarm', state); });
     socket.on('admin-toggle-blackout', (state) => { io.emit('sync-blackout', state); });
     socket.on('admin-trigger-flicker', () => { io.emit('sync-flicker'); });
@@ -71,5 +68,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backrooms signaling matrix active on port ${PORT}`);
+    console.log(`Backrooms matrix active on port ${PORT}`);
 });
