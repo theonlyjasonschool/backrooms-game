@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Backrooms - Test Place</title>
     <style>
+        * { box-sizing: border-box; }
         body, html {
             margin: 0; padding: 0; overflow: hidden;
             width: 100%; height: 100%; background-color: #000;
@@ -13,99 +14,100 @@
         }
         #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
         
+        /* Top Navigation Button Cluster */
+        .top-ui-cluster {
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            display: flex; flex-wrap: wrap; gap: 10px; z-index: 50;
+            pointer-events: none; width: calc(100% - 30px);
+        }
+        .right-ui-cluster {
+            margin-left: auto; display: flex; gap: 10px;
+        }
+
         .ui-btn {
-            position: absolute; z-index: 50; padding: 12px 20px;
-            background: rgba(40, 40, 30, 0.7); color: #eedc82;
-            border: 2px solid #dbca8a; border-radius: 8px;
-            font-weight: bold; font-size: 0.9rem; cursor: pointer;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5); display: none; 
-            touch-action: manipulation; pointer-events: auto;
+            padding: 10px 16px; background: rgba(40, 40, 30, 0.85); color: #eedc82;
+            border: 2px solid #dbca8a; border-radius: 6px;
+            font-weight: bold; font-size: 0.85rem; cursor: pointer;
+            box-shadow: 0 0 8px rgba(0,0,0,0.6); pointer-events: auto;
+            display: inline-flex; align-items: center; justify-content: center;
         }
         .ui-btn:active { background: rgba(219, 202, 138, 0.4); }
         
-        #btn-sprint-toggle { top: 20px; left: 20px; }
-        #btn-flashlight { top: 20px; right: 155px; }
-        
-        #btn-mic-toggle { 
-            top: 20px; right: 90px; padding: 8px 12px; 
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            background: rgba(40, 40, 30, 0.7); border-color: #dbca8a; color: #eedc82;
-        }
-        #btn-mic-toggle.muted { border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.7); }
+        #btn-mic-toggle.muted { border-color: #ff4444; color: #ff8888; background: rgba(60, 20, 20, 0.85); }
         
         .mic-icon {
-            position: relative; width: 10px; height: 14px;
-            background: currentColor; border-radius: 5px; display: inline-block;
+            position: relative; width: 10px; height: 12px;
+            background: currentColor; border-radius: 4px; display: inline-block; margin-right: 6px;
         }
         .mic-icon::before {
-            content: ''; position: absolute; top: 4px; left: -3px; width: 14px; height: 10px; border: 2px solid currentColor; border-top: none; border-radius: 0 0 10px 10px; box-sizing: border-box;
+            content: ''; position: absolute; top: 3px; left: -3px; width: 12px; height: 8px; 
+            border: 2px solid currentColor; border-top: none; border-radius: 0 0 8px 8px; box-sizing: border-box;
         }
-        .mic-icon::after { content: ''; position: absolute; bottom: -4px; left: 4px; width: 2px; height: 4px; background: currentColor; }
-        #btn-mic-toggle.muted .mic-icon::before { content: ''; position: absolute; top: 6px; left: -5px; width: 18px; height: 2px; background: #ff4444; transform: rotate(45deg); border: none; }
+        #btn-mic-toggle.muted .mic-icon::before { content: ''; position: absolute; top: 5px; left: -5px; width: 16px; height: 2px; background: #ff4444; transform: rotate(45deg); border: none; }
 
-        #btn-mobile-pause { top: 20px; right: 20px; padding: 12px 15px; }
-        #btn-mobile-jump { bottom: 40px; right: 40px; width: 70px; height: 70px; border-radius: 50%; padding: 0; justify-content: center; align-items: center; }
+        /* Admin Controls Colors */
+        #btn-alarm { border-color: #ff4444; color: #ff8888; display: none; }
+        #btn-flicker { border-color: #ffaa00; color: #ffcc66; display: none; }
+        #btn-blackout { border-color: #aa00ff; color: #e0aaff; display: none; }
 
-        /* Admin Controls */
-        .admin-controls { display: none; }
-        #btn-alarm { top: 20px; left: 140px; border-color: #ff4444; color: #ff8888; }
-        #btn-flicker { top: 20px; left: 265px; border-color: #ffaa00; color: #ffcc66; }
-        #btn-blackout { top: 20px; left: 50%; transform: translateX(-50%); border-color: #aa00ff; color: #e0aaff; }
+        /* Mobile Action HUD */
+        #mobile-hud-actions {
+            position: absolute; bottom: 30px; right: 30px;
+            display: flex; flex-direction: column; gap: 15px; z-index: 50; pointer-events: none;
+        }
+        #btn-mobile-jump {
+            width: 65px; height: 65px; border-radius: 50%; padding: 0;
+            font-size: 1rem; pointer-events: auto; display: none;
+        }
 
+        /* Joysticks & Look Zones */
         #joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 75%; z-index: 15; pointer-events: auto; }
         #joystick-base { position: absolute; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4); border-radius: 50%; display: none; transform: translate(-50%, -50%); pointer-events: none; }
         #joystick-stick { position: absolute; width: 40px; height: 40px; background: rgba(255, 255, 255, 0.4); border-radius: 50%; top: 20px; left: 20px; pointer-events: none; }
         #look-zone { position: absolute; bottom: 0; right: 0; width: 50%; height: 100%; z-index: 14; pointer-events: auto; }
 
+        /* UI Overlays (Menu/Pause/CC) */
         .menu-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); color: #dbca8a;
+            background: rgba(0,0,0,0.9); color: #dbca8a;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            text-align: center; z-index: 60;
+            text-align: center; z-index: 60; padding: 20px; overflow-y: auto;
         }
-        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #eedc82; text-shadow: 0 0 10px rgba(238,220,130,0.5); }
-        p { font-size: 1.1rem; margin: 5px 15px; }
+        h1 { font-size: calc(1.5rem + 1vw); margin-bottom: 10px; color: #eedc82; text-shadow: 0 0 10px rgba(238,220,130,0.5); }
+        p { font-size: 0.95rem; margin: 5px 0; max-width: 600px; }
 
         .nick-input-box { margin: 15px 0; }
         .nick-input-box input {
-            padding: 12px; font-size: 1.2rem; background: #111; color: #eedc82;
+            padding: 12px; font-size: 1.1rem; background: #111; color: #eedc82;
             border: 2px solid #dbca8a; border-radius: 6px; text-align: center; width: 220px;
         }
 
-        /* Pauze Menu tweekoloms lay-out */
+        /* Layout Container Multi-Column (Pause Screen) */
         .pause-layout {
-            display: flex; flex-direction: row; gap: 30px; align-items: flex-start; justify-content: center; margin-top: 15px;
+            display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; max-width: 650px; margin: 15px 0;
         }
-
-        .pause-column-left {
-            background: rgba(20, 20, 15, 0.85); border: 2px solid #dbca8a; border-radius: 12px; padding: 20px; width: 240px; height: 260px; display: flex; flex-direction: column;
+        .pause-column-left, .settings-panel {
+            background: rgba(20, 20, 15, 0.95); border: 2px solid #dbca8a; border-radius: 10px;
+            padding: 15px; width: 280px; min-height: 220px; display: flex; flex-direction: column;
         }
-
         .player-list-container {
-            margin-top: 10px; background: rgba(10,10,5,0.6); border: 1px solid #dbca8a; border-radius: 6px; flex: 1; overflow-y: auto; padding: 8px;
+            margin-top: 8px; background: rgba(10,10,5,0.6); border: 1px solid #dbca8a; border-radius: 6px; flex: 1; overflow-y: auto; padding: 8px; max-height: 150px;
         }
-        .player-list-item { font-size: 0.9rem; color: #fff; padding: 5px 0; text-align: left; border-bottom: 1px solid rgba(219,202,138,0.2); }
+        .player-list-item { font-size: 0.85rem; color: #fff; padding: 4px 0; text-align: left; border-bottom: 1px solid rgba(219,202,138,0.15); }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-weight: bold; font-size: 0.9rem; }
+        .setting-row input[type="range"] { width: 120px; accent-color: #dbca8a; }
 
-        .settings-panel {
-            background: rgba(20, 20, 15, 0.85); border: 2px solid #dbca8a; border-radius: 12px; padding: 20px; width: 280px; height: 260px; box-sizing: border-box;
-        }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; }
-        .setting-row input[type="range"] { width: 130px; accent-color: #dbca8a; }
+        .admin-login-box { margin-top: auto; border-top: 1px dashed rgba(219,202,138,0.4); padding-top: 8px; text-align: center; }
+        .admin-login-box input { width: 100%; padding: 6px; background: #111; color: #fff; border: 1px solid #aa00ff; border-radius: 4px; text-align: center; }
+        #btn-admin-submit { background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff; margin-top: 6px; cursor: pointer; padding: 6px; font-weight: bold; border-radius: 4px; border: 2px solid; width: 100%; }
 
-        .admin-login-box { margin-top: 10px; border-top: 1px dashed #dbca8a; padding-top: 10px; text-align: center; }
-        .admin-login-box input { width: 80%; padding: 8px; background: #111; color: #fff; border: 1px solid #aa00ff; border-radius: 4px; text-align: center; font-size: 1rem; }
-        #btn-admin-submit { background: rgba(30, 20, 40, 0.8); border-color: #aa00ff; color: #e0aaff; margin-top: 8px; cursor: pointer; padding: 6px 12px; font-weight: bold; border-radius: 4px; border: 2px solid; width: 87%; }
-
-        /* Command Centre Elements */
-        #btn-command-trigger { position: absolute; top: 20px; right: 20px; border-color: #aa00ff; color: #e0aaff; display: block; z-index: 70; }
-        #command-centre-overlay { display: none; background: #050508; color: #55ff55; font-family: monospace; flex-direction: row; padding: 20px; box-sizing: border-box; gap: 20px; }
-        .cc-panel { border: 2px solid #22aa22; background: #0a110a; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; }
-        #cc-left { flex: 1; align-items: center; justify-content: center; }
-        #cc-right { width: 320px; justify-content: space-between; }
-        #map-canvas { background: #020502; border: 1px solid #22aa22; box-shadow: 0 0 15px rgba(0,200,0,0.2); }
-        .cc-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 5px #22aa22; border-bottom: 1px solid #22aa22; padding-bottom: 4px; }
-        #cc-cam-view { width: 100%; height: 180px; background: #000; position: relative; border: 1px solid #22aa22; }
-        .cc-cam-overlay { position: absolute; top: 5px; left: 5px; font-size: 0.8rem; color: #55ff55; text-shadow: 1px 1px 2px #000; z-index: 10; pointer-events: none; }
+        /* Tactical Command Centre */
+        #command-centre-overlay { display: none; background: #050508; color: #55ff55; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: center; }
+        .cc-panel { border: 2px solid #22aa22; background: #0a110a; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; width: 100%; max-width: 360px; }
+        #map-canvas { background: #020502; border: 1px solid #22aa22; max-width: 100%; height: auto; }
+        .cc-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #22aa22; padding-bottom: 4px; }
+        #cc-cam-view { width: 100%; height: 160px; background: #000; position: relative; border: 1px solid #22aa22; }
+        .cc-cam-overlay { position: absolute; top: 5px; left: 5px; font-size: 0.75rem; color: #55ff55; text-shadow: 1px 1px 2px #000; z-index: 10; }
 
         #vhs-screen-effects { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
     </style>
@@ -114,31 +116,41 @@
 
     <div id="vhs-screen-effects"></div>
 
-    <div id="instructions" class="menu-overlay">
-        <h1>THE BACKROOMS - Test Place</h1>
+    <div class="top-ui-cluster">
+        <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
+        <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
+        <button id="btn-alarm" class="ui-btn" onclick="requestToggleAlarm()">ALARM</button>
+        <button id="btn-flicker" class="ui-btn" onclick="requestTriggerFlicker()">FLICKER</button>
+        <button id="btn-blackout" class="ui-btn" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
         
-        <div class="nick-input-box">
-            <input type="text" id="player-nickname-input" placeholder="ENTER NICKNAME" maxlength="14">
+        <div class="right-ui-cluster">
+            <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()"><span class="mic-icon"></span><span id="mic-text">MIC</span></button>
+            <button id="btn-mobile-pause" class="ui-btn" onclick="pauseGame()">⏸</button>
         </div>
+    </div>
 
-        <p><b>PC Controls:</b> WASD to move. Shift to Run. Space to Jump.</p>
-        <p>F: Flashlight | M: Toggle Microphone</p>
-        <p id="admin-help-text" style="color: #e0aaff; display: none;">Admin Keys -> [: Alarm | ]: Blackout | \: Chaos Flicker</p>
-        <p><b>Esc</b> to Pause / Release Mouse</p>
-        <button class="ui-btn" style="position:static; margin-top:20px; display:block;" onclick="startGame()">ENTER MATRIX</button>
-        
-        <button id="btn-command-trigger" class="ui-btn" onclick="accessCommandCentre()">COMMAND CENTRE</button>
+    <div id="mobile-hud-actions">
+        <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
+    </div>
+
+    <div id="instructions" class="menu-overlay">
+        <h1>THE BACKROOMS - Matrix Zone</h1>
+        <div class="nick-input-box">
+            <input type="text" id="player-nickname-input" placeholder="ENTER NICKNAME" value="Researcher" maxlength="14">
+        </div>
+        <p><b>PC:</b> WASD + Shift (Run) | F (Flashlight) | Esc (Pause)</p>
+        <p><b>Controller Support:</b> Left Stick (Move) | Right Stick (Look) | L2 (Run) | D-Pad Left (Flashlight) | A / Cross (Jump)</p>
+        <button class="ui-btn" style="margin-top:20px; font-size:1.1rem; padding:12px 30px;" onclick="startGame()">ENTER MATRIX</button>
+        <button class="ui-btn" style="margin-top:10px; border-color:#aa00ff; color:#e0aaff;" onclick="accessCommandCentre()">COMMAND CENTRE</button>
     </div>
 
     <div id="pause-menu" class="menu-overlay" style="display: none;">
         <h1>GAME PAUSED</h1>
-        
         <div class="pause-layout">
             <div class="pause-column-left">
-                <div style="text-align: left; font-size: 0.85rem; font-weight: bold; color: #eedc82;">RESEARCHERS IN ZONE:</div>
+                <div style="text-align: left; font-size: 0.8rem; font-weight: bold; color: #eedc82;">CONNECTED RESEARCHERS:</div>
                 <div class="player-list-container" id="pause-player-list"></div>
             </div>
-
             <div class="settings-panel">
                 <div class="setting-row">
                     <label for="slider-volume">VOLUME</label>
@@ -148,51 +160,36 @@
                     <label for="slider-sens">SENSITIVITY</label>
                     <input type="range" id="slider-sens" min="0.2" max="2.5" step="0.05" value="1.0">
                 </div>
-                
                 <div class="admin-login-box" id="admin-box-container">
                     <input type="password" id="admin-password-input" placeholder="ADMIN KEY">
                     <button id="btn-admin-submit" onclick="checkAdminLogin()">SUBMIT</button>
                 </div>
             </div>
         </div>
-
-        <button class="ui-btn" style="position:static; margin-top:25px; display:block;" onclick="resumeGame()">RESUME</button>
+        <button class="ui-btn" style="margin-top:15px; width:100%; max-width:200px;" onclick="resumeGame()">RESUME</button>
     </div>
 
     <div id="command-centre-overlay" class="menu-overlay">
         <div id="cc-left" class="cc-panel">
             <div class="cc-title">TACTICAL ZONE MAP</div>
-            <canvas id="map-canvas" width="380" height="300"></canvas>
+            <canvas id="map-canvas" width="340" height="260"></canvas>
         </div>
         <div id="cc-right" class="cc-panel">
             <div>
                 <div class="cc-title">SYSTEM MONITOR</div>
-                <p style="color:#fff;">CONNECTED CLIENTS: <span id="cc-player-count" style="color:#55ff55; font-weight:bold;">1</span></p>
+                <p style="color:#fff; font-size:0.85rem;">CONNECTED SYSTEM CLIENTS: <span id="cc-player-count" style="color:#55ff55; font-weight:bold;">1</span></p>
             </div>
-            <div>
+            <div style="margin-top:10px;">
                 <div class="cc-title">CCTV CAMERA FEED</div>
                 <div id="cc-cam-view">
                     <div class="cc-cam-overlay" id="cc-cam-label">CAM_01 - NORTH HALL</div>
                 </div>
-                <button class="ui-btn" style="position:static; margin-top:10px; width:100%; display:block;" onclick="cycleCCCamera()">CYCLE CAMERA</button>
+                <button class="ui-btn" style="margin-top:8px; width:100%; padding:6px;" onclick="cycleCCCamera()">CYCLE CAMERA</button>
             </div>
-            <button class="ui-btn" style="position:static; margin-top:15px; border-color:#ff4444; color:#ff8888; display:block;" onclick="exitCommandCentre()">DISCONNECT CC</button>
+            <button class="ui-btn" style="margin-top:15px; border-color:#ff4444; color:#ff8888;" onclick="exitCommandCentre()">DISCONNECT CC</button>
         </div>
     </div>
     
-    <button id="btn-sprint-toggle" class="ui-btn">RUN: OFF</button>
-    <button id="btn-flashlight" class="ui-btn" onclick="toggleFlashlight()">FLASHLIGHT: OFF</button>
-    <button id="btn-mic-toggle" class="ui-btn" onclick="toggleMic()">
-        <span class="mic-icon"></span> <span id="mic-text">MIC: ON</span>
-    </button>
-    
-    <button id="btn-mobile-pause" class="ui-btn" onclick="pauseGame()">⏸</button>
-    <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
-
-    <button id="btn-alarm" class="ui-btn admin-controls" onclick="requestToggleAlarm()">TOGGLE ALARM</button>
-    <button id="btn-flicker" class="ui-btn admin-controls" onclick="requestTriggerFlicker()">FLICKER</button>
-    <button id="btn-blackout" class="ui-btn admin-controls" onclick="requestToggleBlackout()">BLACKOUT: OFF</button>
-
     <div id="joystick-zone"><div id="joystick-base"><div id="joystick-stick"></div></div></div>
     <div id="look-zone"></div>
     <div id="canvas-container"></div>
@@ -214,11 +211,15 @@
         let audioCtx = null, alarmOscillator = null, alarmGain = null, nextFootstepTime = 0;
         let localStream = null, micMuted = false, isAdmin = false; 
         const peers = {}; 
+        const keysPressed = { w: false, s: false, a: false, d: false, Shift: false };
 
         let userNickname = "Player";
         const remotePlayers = {};
         const cachedPlayerStates = {}; 
-        let isFlickering = false; // Vlag om te voorkomen dat render-loop flikkeringen reset
+        let isFlickering = false;
+
+        // Controller State Flags
+        let dpadLeftPressed = false;
 
         const map = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -255,31 +256,35 @@
         const settings = { smoothing: 0.4, bobSpeed: 14.0, bobAmount: 0.025 };
 
         function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-        function playClickSound() { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04); gain.gain.setValueAtTime(0.1 * globalVolume, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.04); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.04); }
-        function playFootstepSound(isSprinting) { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(isSprinting ? 95 : 75, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1); gain.gain.setValueAtTime((isSprinting ? 0.25 : 0.15) * globalVolume, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
+        function playClickSound() { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); gain.gain.setValueAtTime(0.1 * globalVolume, audioCtx.currentTime); gain.connect(audioCtx.destination); osc.connect(gain); osc.start(); osc.stop(audioCtx.currentTime + 0.04); }
+        function playFootstepSound(isSprinting) { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(isSprinting ? 95 : 75, audioCtx.currentTime); gain.gain.setValueAtTime((isSprinting ? 0.25 : 0.15) * globalVolume, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
         function startAlarmSiren() { if (!audioCtx || alarmOscillator) return; alarmOscillator = audioCtx.createOscillator(); alarmGain = audioCtx.createGain(); alarmOscillator.type = 'sawtooth'; alarmOscillator.frequency.setValueAtTime(220, audioCtx.currentTime); alarmGain.gain.setValueAtTime(0, audioCtx.currentTime); alarmOscillator.connect(alarmGain); alarmGain.connect(audioCtx.destination); alarmOscillator.start(); updateAlarmSirenLoop(); }
-        function updateAlarmSirenLoop() { if (!alarmOscillator || !alarmActive) return; let time = audioCtx.currentTime; alarmOscillator.frequency.linearRampToValueAtTime(340, time + 0.4); alarmOscillator.frequency.linearRampToValueAtTime(220, time + 0.8); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.1); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.4); alarmGain.gain.linearRampToValueAtTime(0, time + 0.8); setTimeout(updateAlarmSirenLoop, 800); }
-        function stopAlarmSiren() { if (alarmOscillator) { try { alarmOscillator.stop(); } catch(e){} alarmOscillator.disconnect(); alarmOscillator = null; alarmGain.disconnect(); alarmGain = null; } }
+        function updateAlarmSirenLoop() { if (!alarmOscillator || !alarmActive) return; let time = audioCtx.currentTime; alarmOscillator.frequency.linearRampToValueAtTime(340, time + 0.4); alarmOscillator.frequency.linearRampToValueAtTime(220, time + 0.8); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.1); alarmGain.gain.linearRampToValueAtTime(0, time + 0.8); setTimeout(updateAlarmSirenLoop, 800); }
+        function stopAlarmSiren() { if (alarmOscillator) { try { alarmOscillator.stop(); } catch(e){} alarmOscillator.disconnect(); alarmOscillator = null; } }
 
         function createWallpaperTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#cbb879'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#beab6c'; for (let i = 0; i < 256; i += 32) ctx.fillRect(i, 0, 4, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
         function createCarpetTexture() { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
-        function createCeilingTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#b5b2a5'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 256, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
+        function createCeilingTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#b5b2a5'; ctx.strokeRect(0, 0, 256, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
 
         function startGame() {
             const nickInput = document.getElementById('player-nickname-input');
-            if(!nickInput.value.trim()) { alert("Please enter a nickname before connecting!"); return; }
+            if(!nickInput.value.trim()) { alert("Please enter a nickname!"); return; }
             userNickname = nickInput.value.trim();
 
             initAudio();
-            if (!isMobile) document.body.requestPointerLock();
-
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; 
+            
+            init(); 
             initMultiplayer();
+
+            if (!isMobile) {
+                document.body.requestPointerLock();
+            }
 
             navigator.mediaDevices.getUserMedia({ audio: true, video: false })
                 .then(stream => { localStream = stream; if(micMuted) localStream.getAudioTracks().forEach(t => t.enabled = false); })
-                .catch(err => console.warn("Microphone blocked.", err));
+                .catch(err => console.warn("Microphone not available.", err));
         }
 
         function accessCommandCentre() {
@@ -287,34 +292,31 @@
             if(pass === "260112") {
                 inCommandCentre = true;
                 document.getElementById('command-centre-overlay').style.display = 'flex';
+                if(!scene) init();
                 renderCommandCentreMap();
-            } else if(pass !== null) { alert("ACCESS DENIED: INVALID SECURITY KEY."); }
+            } else if(pass !== null) { alert("ACCESS DENIED."); }
         }
 
         function exitCommandCentre() { inCommandCentre = false; document.getElementById('command-centre-overlay').style.display = 'none'; }
 
         function createMinecraftModel(skinColor) {
             const group = new THREE.Group();
-            const headMat = new THREE.MeshLambertMaterial({ color: 0xffdbac }); 
-            const bodyMat = new THREE.MeshLambertMaterial({ color: skinColor });
-            const legMat  = new THREE.MeshLambertMaterial({ color: 0x333333 }); 
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), headMat); head.position.y = 1.3; group.add(head);
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), bodyMat); torso.position.y = 0.8; group.add(torso);
-            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat); leftArm.position.set(-0.28, 0.8, 0); group.add(leftArm);
-            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), headMat); rightArm.position.set(0.28, 0.8, 0); group.add(rightArm);
-            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat); leftLeg.position.set(-0.1, 0.25, 0); group.add(leftLeg);
-            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), legMat); rightLeg.position.set(0.1, 0.25, 0); group.add(rightLeg);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshLambertMaterial({ color: 0xffdbac })); head.position.y = 1.3; group.add(head);
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: skinColor })); torso.position.y = 0.8; group.add(torso);
+            const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: 0xffdbac })); leftArm.position.set(-0.28, 0.8, 0); group.add(leftArm);
+            const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: 0xffdbac })); rightArm.position.set(0.28, 0.8, 0); group.add(rightArm);
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); leftLeg.position.set(-0.1, 0.25, 0); group.add(leftLeg);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); rightLeg.position.set(0.1, 0.25, 0); group.add(rightLeg);
             return group;
         }
 
         function spawnRemotePlayer(id, info) {
-            if (remotePlayers[id]) return;
+            if (remotePlayers[id] || !scene) return;
             const model = createMinecraftModel(info.color || 0xdcb85c);
             model.position.copy(info.pos || new THREE.Vector3(3, 0, 3));
             scene.add(model);
             remotePlayers[id] = model;
-            
-            cachedPlayerStates[id] = { pos: new THREE.Vector3().copy(model.position), nickname: info.nickname || "Unknown" };
+            cachedPlayerStates[id] = { pos: new THREE.Vector3().copy(model.position), nickname: info.nickname || "Researcher" };
         }
 
         function initMultiplayer() {
@@ -325,28 +327,19 @@
             socket.on("currentPlayers", (players) => { 
                 Object.keys(players).forEach(id => { if (id !== socket.id) { spawnRemotePlayer(id, players[id]); createPeer(id, true); } }); 
             });
-            
             socket.on("newPlayer", (data) => { spawnRemotePlayer(data.id, data.info); });
-            
             socket.on("playerMoved", (data) => { 
-                if (remotePlayers[data.id]) { 
-                    remotePlayers[data.id].position.copy(data.pos); 
-                    remotePlayers[data.id].rotation.y = data.rotY; 
-                } 
-                // Realtime locatie opslaan voor de CC Map
-                cachedPlayerStates[data.id] = { pos: new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), nickname: data.nickname || "Onderzoeker" };
+                if (remotePlayers[data.id]) { remotePlayers[data.id].position.copy(data.pos); remotePlayers[data.id].rotation.y = data.rotY; } 
+                cachedPlayerStates[data.id] = { pos: new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), nickname: data.nickname || "Researcher" };
             });
 
             socket.on("updatePlayerList", (players) => {
                 const container = document.getElementById('pause-player-list');
-                container.innerHTML = "";
-                let count = 0;
+                if(!container) return;
+                container.innerHTML = ""; let count = 0;
                 Object.keys(players).forEach(id => {
-                    count++;
-                    const div = document.createElement('div');
-                    div.className = "player-list-item";
-                    div.innerText = `• ${players[id].nickname} ${id === socket.id ? '(You)' : ''}`;
-                    container.appendChild(div);
+                    count++; const div = document.createElement('div'); div.className = "player-list-item";
+                    div.innerText = `• ${players[id].nickname} ${id === socket.id ? '(You)' : ''}`; container.appendChild(div);
                 });
                 document.getElementById('cc-player-count').innerText = count;
             });
@@ -354,144 +347,119 @@
             socket.on("webrtc-signal", (data) => { if (!peers[data.from]) createPeer(data.from, false); peers[data.from].signal(data.signal); });
             socket.on("userDisconnected", (id) => { 
                 if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
-                if (peers[id]) { peers[id].destroy(); delete peers[id]; }
                 delete cachedPlayerStates[id];
             });
 
             socket.on("sync-alarm", (state) => {
-                alarmActive = state;
-                document.getElementById('btn-alarm').style.background = alarmActive ? "rgba(255,0,0,0.4)" : "rgba(40, 40, 30, 0.7)";
-                if (alarmActive) startAlarmSiren(); else stopAlarmSiren();
+                alarmActive = state; if (alarmActive) startAlarmSiren(); else stopAlarmSiren();
             });
-            
             socket.on("sync-blackout", (state) => {
                 blackoutActive = state; ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
                 if(blackoutActive) fluorescentLights.forEach(light => light.intensity = 0);
-                else if(!alarmActive) fluorescentLights.forEach(light => { light.intensity = 1.2; light.color.set('#fffde8'); });
+                else fluorescentLights.forEach(light => { light.intensity = 1.2; light.color.set('#fffde8'); });
                 document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
             });
-            
             socket.on("sync-flicker", () => {
-                isFlickering = true;
-                let count = 0;
+                isFlickering = true; let count = 0;
                 let interval = setInterval(() => {
                     let state = Math.random() > 0.5;
-                    fluorescentLights.forEach(l => {
-                        if (blackoutActive) l.intensity = 0;
-                        else if (alarmActive) { l.intensity = state ? 1.5 : 0; l.color.set('#ff0000'); }
-                        else { l.intensity = state ? 1.2 : 0; l.color.set('#fffde8'); }
-                    });
-                    count++; 
-                    if (count > 10) { 
-                        clearInterval(interval); 
-                        isFlickering = false;
-                        fluorescentLights.forEach(l => {
-                            if(blackoutActive) l.intensity = 0;
-                            else if(alarmActive) { l.intensity = 1.5; l.color.set('#ff0000'); }
-                            else { l.intensity = 1.2; l.color.set('#fffde8'); }
-                        }); 
-                    }
+                    fluorescentLights.forEach(l => { l.intensity = state ? (alarmActive ? 1.5 : 1.2) : 0; });
+                    if (++count > 10) { clearInterval(interval); isFlickering = false; }
                 }, 75);
             });
         }
 
         function createPeer(targetId, isInitiator) {
-            if (peers[targetId]) return;
             const peer = new SimplePeer({ initiator: isInitiator, trickle: false, stream: localStream });
             peer.on('signal', (signalData) => { socket.emit('webrtc-signal', { to: targetId, signal: signalData }); });
             peer.on('stream', (stream) => { let audio = document.createElement('audio'); audio.srcObject = stream; audio.play(); peer.audioElement = audio; });
-            peer.on('close', () => { if (peer.audioElement) peer.audioElement.remove(); });
             peers[targetId] = peer;
         }
 
+        function handleGamepadInput() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const gp = gamepads[0];
+            if (!gp) return;
+
+            // 1. Bewegen (Linker Stick)
+            let stickX = gp.axes[0];
+            let stickY = gp.axes[1];
+            if (Math.abs(stickX) < 0.15) stickX = 0;
+            if (Math.abs(stickY) < 0.15) stickY = 0;
+            
+            // Zet om naar movement bindings
+            keysPressed.d = stickX > 0.2;
+            keysPressed.a = stickX < -0.2;
+            keysPressed.s = stickY > 0.2;
+            keysPressed.w = stickY < -0.2;
+
+            // 2. Rondkijken (Rechter Stick)
+            let lookX = gp.axes[2];
+            let lookY = gp.axes[3];
+            if (Math.abs(lookX) > 0.15) player.targetYaw -= lookX * 0.03 * lookSensitivity;
+            if (Math.abs(lookY) > 0.15) {
+                player.targetPitch -= lookY * 0.02 * lookSensitivity;
+                player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
+            }
+
+            // 3. Sprinten via L2 (Button index 6)
+            keysPressed.Shift = gp.buttons[6].pressed;
+
+            // 4. Springen via Button 0 (A / Cross)
+            if (gp.buttons[0].pressed && player.isGrounded) handleJumpInput();
+
+            // 5. Flashlight via D-pad Links (Button index 14)
+            if (gp.buttons[14].pressed) {
+                if (!dpadLeftPressed) { toggleFlashlight(); dpadLeftPressed = true; }
+            } else { dpadLeftPressed = false; }
+        }
+
         function renderCommandCentreMap() {
-            if(!inCommandCentre) return;
-            requestAnimationFrame(renderCommandCentreMap);
-
-            const canvas = document.getElementById('map-canvas');
-            const ctx = canvas.getContext('2d');
+            if(!inCommandCentre) return; requestAnimationFrame(renderCommandCentreMap);
+            const canvas = document.getElementById('map-canvas'); const ctx = canvas.getContext('2d');
             ctx.clearRect(0,0, canvas.width, canvas.height);
-
-            const gridScale = 18; const offsetX = 25; const offsetY = 20;
-
+            const gridScale = 16; const offsetX = 15; const offsetY = 15;
             ctx.fillStyle = "#225522";
             for(let z=0; z<map.length; z++) {
                 for(let x=0; x<map[z].length; x++) {
                     if(map[z][x] === 1) ctx.fillRect(offsetX + x*gridScale, offsetY + z*gridScale, gridScale-1, gridScale-1);
-                    else { ctx.strokeStyle = "rgba(34,170,34,0.15)"; ctx.strokeRect(offsetX + x*gridScale, offsetY + z*gridScale, gridScale, gridScale); }
                 }
             }
-
-            // Je eigen locatie op de CC kaart
-            let localMapX = offsetX + (player.pos.x / UNIT_SIZE) * gridScale;
-            let localMapZ = offsetY + (player.pos.z / UNIT_SIZE) * gridScale;
-            ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(localMapX, localMapZ, 5, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = "#ffffff"; ctx.font = "10px monospace"; ctx.textAlign = "center"; ctx.fillText(userNickname, localMapX, localMapZ - 8);
-
-            // Andere spelers realtime plotten + nicknames
+            let lx = offsetX + (player.pos.x / UNIT_SIZE) * gridScale; let lz = offsetY + (player.pos.z / UNIT_SIZE) * gridScale;
+            ctx.fillStyle = "#00ffff"; ctx.beginPath(); ctx.arc(lx, lz, 5, 0, Math.PI*2); ctx.fill();
             Object.keys(cachedPlayerStates).forEach(id => {
-                let pData = cachedPlayerStates[id];
-                if(!pData.pos) return;
-                let remMapX = offsetX + (pData.pos.x / UNIT_SIZE) * gridScale;
-                let remMapZ = offsetY + (pData.pos.z / UNIT_SIZE) * gridScale;
-
-                ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(remMapX, remMapZ, 5, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#55ff55"; ctx.font = "10px monospace"; ctx.textAlign = "center"; ctx.fillText(pData.nickname, remMapX, remMapZ - 8);
+                let p = cachedPlayerStates[id]; if(!p.pos) return;
+                let rx = offsetX + (p.pos.x / UNIT_SIZE) * gridScale; let rz = offsetY + (p.pos.z / UNIT_SIZE) * gridScale;
+                ctx.fillStyle = "#ff4444"; ctx.beginPath(); ctx.arc(rx, rz, 5, 0, Math.PI*2); ctx.fill();
             });
         }
 
-        function cycleCCCamera() {
-            ccCamIndex = (ccCamIndex + 1) % ccCamPositions.length;
-            const targetCam = ccCamPositions[ccCamIndex];
-            ccCamera.position.copy(targetCam.pos);
-            ccCamera.lookAt(targetCam.lookAt);
-            document.getElementById('cc-cam-label').innerText = targetCam.label;
-        }
-
-        function toggleMic() {
-            micMuted = !micMuted;
-            if (localStream) localStream.getAudioTracks().forEach(track => { track.enabled = !micMuted; });
-            const micBtn = document.getElementById('btn-mic-toggle'); const micText = document.getElementById('mic-text');
-            if (micMuted) { micBtn.classList.add('muted'); micText.innerText = "MIC: MUTED"; } else { micBtn.classList.remove('muted'); micText.innerText = "MIC: ON"; }
-        }
-
-        function checkAdminLogin() {
-            const inputEl = document.getElementById('admin-password-input');
-            if (inputEl.value === "260112") {
-                isAdmin = true; inputEl.blur(); 
-                document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN ACCESS GRANTED</b>";
-                document.getElementById('admin-help-text').style.display = 'block';
-                updateAdminInterfaceVisibility();
-            } else { alert("Incorrect key!"); inputEl.value = ""; inputEl.blur(); }
-        }
-
-        function updateAdminInterfaceVisibility() { if (isAdmin) { document.querySelectorAll('.admin-controls').forEach(btn => { btn.style.display = 'block'; }); } }
+        function cycleCCCamera() { ccCamIndex = (ccCamIndex + 1) % ccCamPositions.length; ccCamera.position.copy(ccCamPositions[ccCamIndex].pos); ccCamera.lookAt(ccCamPositions[ccCamIndex].lookAt); document.getElementById('cc-cam-label').innerText = ccCamPositions[ccCamIndex].label; }
+        function toggleMic() { micMuted = !micMuted; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted); document.getElementById('btn-mic-toggle').classList.toggle('muted', micMuted); }
+        function checkAdminLogin() { if (document.getElementById('admin-password-input').value === "260112") { isAdmin = true; document.getElementById('admin-box-container').innerHTML = "<b style='color:#88ff88;'>ADMIN OK</b>"; document.getElementById('btn-alarm').style.display='inline-flex'; document.getElementById('btn-flicker').style.display='inline-flex'; document.getElementById('btn-blackout').style.display='inline-flex'; } }
         function requestToggleAlarm() { if (isAdmin && socket) socket.emit('admin-toggle-alarm', !alarmActive); }
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        function pauseGame() { if (!gameActive || isPaused || isDead) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; if (document.pointerLockElement === document.body) document.exitPointerLock(); }
-        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); if (!isMobile) document.body.requestPointerLock(); }
-
+        function pauseGame() { if (!gameActive || isPaused) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; }
+        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); }
         function toggleFlashlight() { playClickSound(); flashlightOn = !flashlightOn; flashlight.intensity = flashlightOn ? 3.5 : 0; document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF"); }
         function handleJumpInput() { if (player.isGrounded) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
 
         function init() {
+            if(scene) return;
             scene = new THREE.Scene(); scene.background = new THREE.Color('#1a1811'); scene.fog = new THREE.FogExp2('#1a1811', 0.08);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.rotation.order = 'YXZ'; 
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); camera.rotation.order = 'YXZ'; 
 
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            ccCamera = new THREE.PerspectiveCamera(65, 320 / 180, 0.1, 100);
-            ccCamera.position.copy(ccCamPositions[0].pos); ccCamera.lookAt(ccCamPositions[0].lookAt);
-
+            ccCamera = new THREE.PerspectiveCamera(65, 320 / 180, 0.1, 100); ccCamera.position.copy(ccCamPositions[0].pos); ccCamera.lookAt(ccCamPositions[0].lookAt);
             ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
             
             flashlight = new THREE.SpotLight('#ffffff', 0, 15, Math.PI / 5, 0.5, 1); camera.add(flashlight);
-            flashlight.position.set(0, 0, 0); flashlight.target = new THREE.Object3D(); camera.add(flashlight.target);
-            flashlight.target.position.set(0, 0, -1); scene.add(camera);
+            flashlight.position.set(0, 0, 0); flashlight.target = new THREE.Object3D(); camera.add(flashlight.target); flashlight.target.position.set(0, 0, -1);
+            scene.add(camera);
 
             const wallMat = new THREE.MeshLambertMaterial({ map: createWallpaperTexture() });
             const floorMat = new THREE.MeshLambertMaterial({ map: createCarpetTexture() });
@@ -500,88 +468,58 @@
             for (let z = 0; z < map.length; z++) {
                 for (let x = 0; x < map[z].length; x++) {
                     if (map[z][x] === 1) {
-                        const wall = new THREE.Mesh(new THREE.BoxGeometry(UNIT_SIZE, WALL_HEIGHT, UNIT_SIZE), wallMat);
-                        wall.position.set(x * UNIT_SIZE, WALL_HEIGHT / 2, z * UNIT_SIZE); scene.add(wall);
+                        const wall = new THREE.Mesh(new THREE.BoxGeometry(UNIT_SIZE, WALL_HEIGHT, UNIT_SIZE), wallMat); wall.position.set(x * UNIT_SIZE, WALL_HEIGHT / 2, z * UNIT_SIZE); scene.add(wall);
                     } else {
                         const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
                         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
-                        
                         if ((x % 3 === 0) && (z % 3 === 0)) {
-                            let lightFixture = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.6), new THREE.MeshBasicMaterial({color: '#fffde8'})); lightFixture.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.05, z * UNIT_SIZE); scene.add(lightFixture);
                             let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2); light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE); scene.add(light); fluorescentLights.push(light);
                         }
                     }
                 }
             }
 
-            if (isMobile) {
-                document.getElementById('btn-sprint-toggle').style.display = 'block'; document.getElementById('btn-mobile-pause').style.display = 'block'; document.getElementById('btn-mobile-jump').style.display = 'flex'; document.getElementById('btn-flashlight').style.display = 'block';
-            } else { document.getElementById('btn-mic-toggle').style.display = 'flex'; document.getElementById('btn-flashlight').style.display = 'block'; }
-            
-            setupControls(); 
+            if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; }
+            setupControls();
             document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); });
-            window.addEventListener('resize', onWindowResize); animate();
+            window.addEventListener('resize', onWindowResize); 
+            animate();
         }
 
         function setupControls() {
-            document.addEventListener('pointerlockchange', () => { if (!isMobile && document.pointerLockElement !== document.body && gameActive && !isDead && !inCommandCentre) pauseGame(); });
-            document.getElementById('canvas-container').addEventListener('click', () => { if (!isMobile && gameActive && !isPaused && !isDead && !inCommandCentre) document.body.requestPointerLock(); });
-
-            const sprBtn = document.getElementById('btn-sprint-toggle');
-            function triggerSprint(e) { if (e) e.preventDefault(); player.mobileSprintOn = !player.mobileSprintOn; if(player.mobileSprintOn) { sprBtn.innerText = "RUN: ON"; sprBtn.style.background = "rgba(219, 202, 138, 0.6)"; } else { sprBtn.innerText = "RUN: OFF"; sprBtn.style.background = "rgba(40, 40, 30, 0.7)"; } }
-            sprBtn.addEventListener('touchstart', triggerSprint, {passive: false}); sprBtn.addEventListener('click', triggerSprint);
-
             window.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' || e.code === 'Escape') { if (!gameActive) return; if (isPaused) resumeGame(); else pauseGame(); return; }
-                if(document.activeElement === document.getElementById('admin-password-input') || document.activeElement === document.getElementById('player-nickname-input')) return;
-
-                const code = e.code; const key = e.key.toLowerCase();
+                if (e.key === 'Escape') { if (isPaused) resumeGame(); else pauseGame(); return; }
+                if(document.activeElement.tagName === 'INPUT') return;
+                let key = e.key.toLowerCase();
                 if(key === 'w') keysPressed.w = true; if(key === 's') keysPressed.s = true; if(key === 'a') keysPressed.a = true; if(key === 'd') keysPressed.d = true;
-                if(e.key === 'Shift') keysPressed.Shift = true; if(e.key === ' ') handleJumpInput(); if(key === 'f') toggleFlashlight(); if(key === 'm') toggleMic();
-                if(isAdmin) { if(code === 'BracketLeft') requestToggleAlarm(); if(code === 'BracketRight') requestToggleBlackout(); if(code === 'Backslash') requestTriggerFlicker(); }
+                if(e.key === 'Shift') keysPressed.Shift = true; if(e.key === ' ') handleJumpInput(); if(key === 'f') toggleFlashlight();
             });
-            
             window.addEventListener('keyup', (e) => {
-                const key = e.key.toLowerCase();
+                let key = e.key.toLowerCase();
                 if(key === 'w') keysPressed.w = false; if(key === 's') keysPressed.s = false; if(key === 'a') keysPressed.a = false; if(key === 'd') keysPressed.d = false;
                 if(e.key === 'Shift') keysPressed.Shift = false;
             });
-
             window.addEventListener('mousemove', (e) => {
-                if (!isMobile && document.pointerLockElement !== document.body || isPaused || isDead || inCommandCentre) return;
+                if (isPaused || isMobile) return;
                 player.targetYaw -= e.movementX * 0.002 * lookSensitivity; player.targetPitch -= e.movementY * 0.002 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
+            // Touch Joystick Engine
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
             let joyTouchId = null, joyStartPos = new THREE.Vector2();
-            
-            joyZone.addEventListener('touchstart', (e) => {
-                if(e.target.classList.contains('ui-btn')) return;
-                const touch = e.changedTouches[0]; joyTouchId = touch.identifier; joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block'; joyBase.style.left = `${touch.clientX}px`; joyBase.style.top = `${touch.clientY}px`;
-            });
+            joyZone.addEventListener('touchstart', (e) => { const touch = e.changedTouches[0]; joyTouchId = touch.identifier; joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block'; joyBase.style.left = `${touch.clientX}px`; joyBase.style.top = `${touch.clientY}px`; });
             joyZone.addEventListener('touchmove', (e) => {
                 for (let touch of e.changedTouches) {
                     if (touch.identifier === joyTouchId) {
-                        let dist = new THREE.Vector2(touch.clientX, touch.clientY).distanceTo(joyStartPos); let angle = Math.atan2(touch.clientY - joyStartPos.y, touch.clientX - joyStartPos.x); let moveDist = Math.min(dist, 40);
-                        joyStick.style.left = `${20 + Math.cos(angle) * moveDist}px`; joyStick.style.top = `${20 + Math.sin(angle) * moveDist}px`;
-                        player.moveDir.set((Math.cos(angle)*moveDist)/40, -(Math.sin(angle)*moveDist)/40);
+                        let dist = Math.min(new THREE.Vector2(touch.clientX, touch.clientY).distanceTo(joyStartPos), 40);
+                        let angle = Math.atan2(touch.clientY - joyStartPos.y, touch.clientX - joyStartPos.x);
+                        joyStick.style.left = `${20 + Math.cos(angle) * dist}px`; joyStick.style.top = `${20 + Math.sin(angle) * dist}px`;
+                        player.moveDir.set((Math.cos(angle)*dist)/40, -(Math.sin(angle)*dist)/40);
                     }
                 }
             });
-            joyZone.addEventListener('touchend', (e) => { for (let touch of e.changedTouches) { if (touch.identifier === joyTouchId) { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); } } });
-
-            const lookZone = document.getElementById('look-zone'); let lookTouchId = null, lookLastPos = new THREE.Vector2();
-            lookZone.addEventListener('touchstart', (e) => { if(e.target.classList.contains('ui-btn')) return; const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); });
-            lookZone.addEventListener('touchmove', (e) => {
-                for (let touch of e.changedTouches) {
-                    if (touch.identifier === lookTouchId) {
-                        player.targetYaw -= (touch.clientX - lookLastPos.x) * 0.006 * lookSensitivity; player.targetPitch -= (touch.clientY - lookLastPos.y) * 0.006 * lookSensitivity;
-                        player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch)); lookLastPos.set(touch.clientX, touch.clientY);
-                    }
-                }
-            });
-            lookZone.addEventListener('touchend', () => { lookTouchId = null; });
+            joyZone.addEventListener('touchend', () => { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); });
         }
 
         function checkGridCollision(pos) { let gx = Math.floor((pos.x + UNIT_SIZE/2) / UNIT_SIZE); let gz = Math.floor((pos.z + UNIT_SIZE/2) / UNIT_SIZE); if (gz >= 0 && gz < map.length && gx >= 0 && gx < map[gz].length) return map[gz][gx] === 1; return true; }
@@ -589,13 +527,15 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            handleGamepadInput(); // Voeg de controller processing toe aan de loop
+
             const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
 
-            if (gameActive && !isPaused && !isDead) {
+            if (gameActive && !isPaused) {
                 player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
                 player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
 
-                let running = keysPressed.Shift || player.mobileSprintOn;
+                let running = keysPressed.Shift;
                 let moveSpeed = running ? 5.2 : 2.8;
                 let moveX = 0, moveZ = 0;
 
@@ -605,9 +545,8 @@
                 if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
                 if(player.moveDir.length() > 0) {
-                    let forwardX = -Math.sin(player.yaw), forwardZ = -Math.cos(player.yaw);
-                    let rightX = -Math.sin(player.yaw - Math.PI/2), rightZ = -Math.cos(player.yaw - Math.PI/2);
-                    moveX = (forwardX * player.moveDir.y + rightX * player.moveDir.x); moveZ = (forwardZ * player.moveDir.y + rightZ * player.moveDir.x);
+                    moveX = (-Math.sin(player.yaw) * player.moveDir.y + -Math.sin(player.yaw - Math.PI/2) * player.moveDir.x);
+                    moveZ = (-Math.cos(player.yaw) * player.moveDir.y + -Math.cos(player.yaw - Math.PI/2) * player.moveDir.x);
                 }
 
                 let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
@@ -619,70 +558,38 @@
                 player.velocityY -= GRAVITY * delta; player.pos.y += player.velocityY * delta;
                 if (player.pos.y <= DEFAULT_EYE_HEIGHT) { player.pos.y = DEFAULT_EYE_HEIGHT; player.velocityY = 0; player.isGrounded = true; }
 
-                let curEye = DEFAULT_EYE_HEIGHT;
-                if (mag > 0 && player.isGrounded) {
-                    player.walkCycle += delta * (running ? settings.bobSpeed * 1.35 : settings.bobSpeed);
-                    curEye += Math.sin(player.walkCycle) * settings.bobAmount;
-                    if (time > nextFootstepTime) { playFootstepSound(running); nextFootstepTime = time + (running ? 280 : 420); }
-                }
-
-                camera.position.set(player.pos.x, player.pos.y + (curEye - DEFAULT_EYE_HEIGHT), player.pos.z);
+                camera.position.set(player.pos.x, player.pos.y, player.pos.z);
                 camera.rotation.y = player.yaw; camera.rotation.x = player.pitch;
 
                 if (socket && socket.connected) {
-                    socket.emit("playerMovement", {
-                        pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z },
-                        rotY: player.yaw
-                    });
+                    socket.emit("playerMovement", { pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z }, rotY: player.yaw });
                 }
             }
 
-            // Lampen/Flicker Systeem Synchronisatie (Oplossing voor flikker-probleem)
+            // Sync Verlichting
             if (!isFlickering) {
                 if (alarmActive) {
-                    let flashState = Math.sin(time * 0.007) > 0;
-                    scene.background.set(flashState ? '#3a0505' : '#1a1811');
-                    if (scene.fog) scene.fog.color.set(flashState ? '#3a0505' : '#1a1811');
-                    fluorescentLights.forEach(l => { if (blackoutActive) l.intensity = 0; else { l.intensity = flashState ? 1.5 : 0.1; l.color.set('#ff0000'); } });
-                } else {
-                    scene.background.set('#1a1811'); if (scene.fog) scene.fog.color.set('#1a1811');
-                    if (!blackoutActive) fluorescentLights.forEach(l => { l.intensity = 1.2; l.color.set('#fffde8'); });
+                    let flash = Math.sin(time * 0.007) > 0;
+                    fluorescentLights.forEach(l => { l.intensity = flash ? 1.5 : 0.1; l.color.set('#ff0000'); });
+                } else if (!blackoutActive) {
+                    fluorescentLights.forEach(l => { l.intensity = 1.2; l.color.set('#fffde8'); });
                 }
             }
 
-            // Volumeberekeningen webrtc peers
-            Object.keys(peers).forEach(id => {
-                const peer = peers[id]; const model = remotePlayers[id];
-                if (peer && peer.audioElement && model) {
-                    const distance = camera.position.distanceTo(model.position); const MaxHearingDistance = 24.0; 
-                    if (distance > MaxHearingDistance) peer.audioElement.volume = 0;
-                    else { let volFactor = 1 - (distance / MaxHearingDistance); peer.audioElement.volume = Math.max(0, Math.min(1, Math.pow(volFactor, 1.5))) * globalVolume; }
-                }
-            });
-
-            // Gecorrigeerde CCTV & Main Viewport Rendering
+            // Render stap
             if (inCommandCentre) {
-                renderer.setScissorTest(false);
-                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                renderer.render(scene, camera);
-
-                // Pak de exacte container dimensies voor CCTV rendering
-                const camBox = document.getElementById('cc-cam-view');
-                const rect = camBox.getBoundingClientRect();
-                
-                renderer.setScissorTest(true);
-                renderer.setViewport(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
-                renderer.setScissor(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
-                renderer.render(scene, ccCamera);
-                renderer.setScissorTest(false);
+                renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.render(scene, camera);
+                const camBox = document.getElementById('cc-cam-view'); if(camBox) {
+                    const rect = camBox.getBoundingClientRect();
+                    renderer.setScissorTest(true); renderer.setViewport(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                    renderer.setScissor(rect.left, window.innerHeight - rect.bottom, rect.width, rect.height);
+                    renderer.render(scene, ccCamera); renderer.setScissorTest(false);
+                }
             } else {
-                renderer.setScissorTest(false);
-                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-                renderer.render(scene, camera);
+                renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                if(scene && camera) renderer.render(scene, camera);
             }
         }
-
-        window.onload = init;
     </script>
 </body>
 </html>
