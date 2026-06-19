@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Backrooms - Test Place</title>
+    <title>The Backrooms - Matrix Zone</title>
     <style>
         * { box-sizing: border-box; }
         body, html {
@@ -61,10 +61,10 @@
         }
 
         /* Joysticks & Look Zones */
-        #joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 75%; z-index: 15; pointer-events: auto; }
+        #joystick-zone { position: absolute; bottom: 0; left: 0; width: 50%; height: 80%; z-index: 15; pointer-events: auto; }
         #joystick-base { position: absolute; width: 80px; height: 80px; background: rgba(255, 255, 255, 0.15); border: 3px solid rgba(255, 255, 255, 0.4); border-radius: 50%; display: none; transform: translate(-50%, -50%); pointer-events: none; }
         #joystick-stick { position: absolute; width: 40px; height: 40px; background: rgba(255, 255, 255, 0.4); border-radius: 50%; top: 20px; left: 20px; pointer-events: none; }
-        #look-zone { position: absolute; bottom: 0; right: 0; width: 50%; height: 100%; z-index: 14; pointer-events: auto; }
+        #look-zone { position: absolute; bottom: 0; right: 0; width: 50%; height: 80%; z-index: 14; pointer-events: auto; }
 
         /* UI Overlays (Menu/Pause/CC) */
         .menu-overlay {
@@ -199,6 +199,8 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <script>
+        window.keysPressed = { w: false, s: false, a: false, d: false, Shift: false };
+
         let scene, camera, renderer, socket = null;
         let prevTime = performance.now();
         let gameActive = false, isPaused = false, isDead = false, inCommandCentre = false;
@@ -211,14 +213,11 @@
         let audioCtx = null, alarmOscillator = null, alarmGain = null, nextFootstepTime = 0;
         let localStream = null, micMuted = false, isAdmin = false; 
         const peers = {}; 
-        const keysPressed = { w: false, s: false, a: false, d: false, Shift: false };
 
         let userNickname = "Player";
         const remotePlayers = {};
         const cachedPlayerStates = {}; 
         let isFlickering = false;
-
-        // Controller State Flags
         let dpadLeftPressed = false;
 
         const map = [
@@ -387,11 +386,10 @@
             if (Math.abs(stickX) < 0.15) stickX = 0;
             if (Math.abs(stickY) < 0.15) stickY = 0;
             
-            // Zet om naar movement bindings
-            keysPressed.d = stickX > 0.2;
-            keysPressed.a = stickX < -0.2;
-            keysPressed.s = stickY > 0.2;
-            keysPressed.w = stickY < -0.2;
+            window.keysPressed.d = stickX > 0.2;
+            window.keysPressed.a = stickX < -0.2;
+            window.keysPressed.s = stickY > 0.2;
+            window.keysPressed.w = stickY < -0.2;
 
             // 2. Rondkijken (Rechter Stick)
             let lookX = gp.axes[2];
@@ -403,7 +401,7 @@
             }
 
             // 3. Sprinten via L2 (Button index 6)
-            keysPressed.Shift = gp.buttons[6].pressed;
+            window.keysPressed.Shift = gp.buttons[6].pressed;
 
             // 4. Springen via Button 0 (A / Cross)
             if (gp.buttons[0].pressed && player.isGrounded) handleJumpInput();
@@ -482,6 +480,7 @@
             if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; }
             setupControls();
             document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); });
+            document.getElementById('slider-sens').addEventListener('input', (e) => { lookSensitivity = parseFloat(e.target.value); });
             window.addEventListener('resize', onWindowResize); 
             animate();
         }
@@ -491,13 +490,13 @@
                 if (e.key === 'Escape') { if (isPaused) resumeGame(); else pauseGame(); return; }
                 if(document.activeElement.tagName === 'INPUT') return;
                 let key = e.key.toLowerCase();
-                if(key === 'w') keysPressed.w = true; if(key === 's') keysPressed.s = true; if(key === 'a') keysPressed.a = true; if(key === 'd') keysPressed.d = true;
-                if(e.key === 'Shift') keysPressed.Shift = true; if(e.key === ' ') handleJumpInput(); if(key === 'f') toggleFlashlight();
+                if(key === 'w') window.keysPressed.w = true; if(key === 's') window.keysPressed.s = true; if(key === 'a') window.keysPressed.a = true; if(key === 'd') window.keysPressed.d = true;
+                if(e.key === 'Shift') window.keysPressed.Shift = true; if(e.key === ' ') handleJumpInput(); if(key === 'f') toggleFlashlight();
             });
             window.addEventListener('keyup', (e) => {
                 let key = e.key.toLowerCase();
-                if(key === 'w') keysPressed.w = false; if(key === 's') keysPressed.s = false; if(key === 'a') keysPressed.a = false; if(key === 'd') keysPressed.d = false;
-                if(e.key === 'Shift') keysPressed.Shift = false;
+                if(key === 'w') window.keysPressed.w = false; if(key === 's') window.keysPressed.s = false; if(key === 'a') window.keysPressed.a = false; if(key === 'd') window.keysPressed.d = false;
+                if(e.key === 'Shift') window.keysPressed.Shift = false;
             });
             window.addEventListener('mousemove', (e) => {
                 if (isPaused || isMobile) return;
@@ -505,7 +504,7 @@
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
-            // Touch Joystick Engine
+            // Touch Joystick Engine (Links)
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
             let joyTouchId = null, joyStartPos = new THREE.Vector2();
             joyZone.addEventListener('touchstart', (e) => { const touch = e.changedTouches[0]; joyTouchId = touch.identifier; joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block'; joyBase.style.left = `${touch.clientX}px`; joyBase.style.top = `${touch.clientY}px`; });
@@ -520,6 +519,36 @@
                 }
             });
             joyZone.addEventListener('touchend', () => { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); });
+
+            // GECORRIGEERDE Touch Look Zone Engine (Rechts)
+            const lookZone = document.getElementById('look-zone'); 
+            let lookTouchId = null, lookLastPos = new THREE.Vector2();
+            
+            lookZone.addEventListener('touchstart', (e) => { 
+                if(e.target.classList.contains('ui-btn')) return; 
+                const touch = e.changedTouches[0]; 
+                lookTouchId = touch.identifier; 
+                lookLastPos.set(touch.clientX, touch.clientY); 
+            });
+            
+            lookZone.addEventListener('touchmove', (e) => {
+                if (isPaused) return;
+                for (let touch of e.changedTouches) {
+                    if (touch.identifier === lookTouchId) {
+                        let deltaX = touch.clientX - lookLastPos.x;
+                        let deltaY = touch.clientY - lookLastPos.y;
+                        
+                        player.targetYaw -= deltaX * 0.005 * lookSensitivity; 
+                        player.targetPitch -= deltaY * 0.005 * lookSensitivity;
+                        player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch)); 
+                        
+                        lookLastPos.set(touch.clientX, touch.clientY);
+                    }
+                }
+            });
+            
+            lookZone.addEventListener('touchend', () => { lookTouchId = null; });
+            lookZone.addEventListener('touchcancel', () => { lookTouchId = null; });
         }
 
         function checkGridCollision(pos) { let gx = Math.floor((pos.x + UNIT_SIZE/2) / UNIT_SIZE); let gz = Math.floor((pos.z + UNIT_SIZE/2) / UNIT_SIZE); if (gz >= 0 && gz < map.length && gx >= 0 && gx < map[gz].length) return map[gz][gx] === 1; return true; }
@@ -527,7 +556,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            handleGamepadInput(); // Voeg de controller processing toe aan de loop
+            handleGamepadInput();
 
             const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
 
@@ -535,14 +564,14 @@
                 player.yaw += (player.targetYaw - player.yaw) * settings.smoothing;
                 player.pitch += (player.targetPitch - player.pitch) * settings.smoothing;
 
-                let running = keysPressed.Shift;
+                let running = window.keysPressed.Shift;
                 let moveSpeed = running ? 5.2 : 2.8;
                 let moveX = 0, moveZ = 0;
 
-                if (keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
-                if (keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
-                if (keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
-                if (keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
+                if (window.keysPressed.w) { moveX -= Math.sin(player.yaw); moveZ -= Math.cos(player.yaw); }
+                if (window.keysPressed.s) { moveX += Math.sin(player.yaw); moveZ += Math.cos(player.yaw); }
+                if (window.keysPressed.a) { moveX -= Math.sin(player.yaw + Math.PI/2); moveZ -= Math.cos(player.yaw + Math.PI/2); }
+                if (window.keysPressed.d) { moveX -= Math.sin(player.yaw - Math.PI/2); moveZ -= Math.cos(player.yaw - Math.PI/2); }
 
                 if(player.moveDir.length() > 0) {
                     moveX = (-Math.sin(player.yaw) * player.moveDir.y + -Math.sin(player.yaw - Math.PI/2) * player.moveDir.x);
@@ -566,7 +595,6 @@
                 }
             }
 
-            // Sync Verlichting
             if (!isFlickering) {
                 if (alarmActive) {
                     let flash = Math.sin(time * 0.007) > 0;
@@ -576,7 +604,6 @@
                 }
             }
 
-            // Render stap
             if (inCommandCentre) {
                 renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight); renderer.render(scene, camera);
                 const camBox = document.getElementById('cc-cam-view'); if(camBox) {
