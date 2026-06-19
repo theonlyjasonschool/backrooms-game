@@ -13,13 +13,13 @@ app.get('/', (req, res) => {
 });
 
 const players = {};
-// Hex color presets assigned randomly to incoming lost researchers
+// Hex color presets assigned randomly to incoming lost researchers (Minecraft shirts)
 const hexColors = [0xdcb85c, 0xc15c5c, 0x5cc1a7, 0x8a5cc1, 0xc18a5c];
 
 io.on('connection', (socket) => {
     console.log(`User mapped into matrix zone: ${socket.id}`);
     
-    // Hersteld: Het object wordt nu netjes afgesloten zonder dat andere functies erin verstrikt raken
+    // Netjes afgesloten baseline object voor de speler
     players[socket.id] = {
         pos: { x: 3, y: 0, z: 3 },
         rotY: 0,
@@ -31,7 +31,7 @@ io.on('connection', (socket) => {
     socket.emit('currentPlayers', players);
     socket.broadcast.emit('newPlayer', { id: socket.id, info: players[socket.id] });
 
-    // Stream position state variations downstream to alternative active matrix sessions
+    // Stream position state variations downstream
     socket.on('playerMovement', (movementData) => {
         if (players[socket.id]) {
             players[socket.id].pos = movementData.pos;
@@ -41,7 +41,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Hersteld: WebRTC signalen worden nu keurig op top-level binnen de connectie afgehandeld
+    // Forward WebRTC signals voor de voice chat
     socket.on('webrtc-signal', (data) => {
         if (players[data.to]) {
             io.to(data.to).emit('webrtc-signal', {
@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Hersteld: Luister naar admin events en stuur ze correct door naar ALLE spelers (io.emit)
+    // Admin Events: Stuur knop-acties direct door naar ALLE actieve spelers
     socket.on('admin-toggle-alarm', (state) => {
         io.emit('sync-alarm', state);
     });
