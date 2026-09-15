@@ -1,45 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(Under Construction)backrooms game</title>
+    <meta name="theme-color" content="#0d0d0b">
+    <meta name="description" content="The Backrooms game is currently under construction.">
+    <title>Backrooms // Maintenance</title>
     <style>
+        :root {
+            color-scheme: dark;
+            --paper: #e8d99b;
+            --muted: #a8a080;
+            --wall: #0d0d0b;
+            --panel: rgba(24, 23, 18, 0.92);
+            --line: rgba(232, 217, 155, 0.22);
+            --warning: #e5a83c;
+            --green: #8aa46b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #000000;
-            color: #fce78a;
-            font-family: 'Courier New', Courier, monospace;
+            background:
+                radial-gradient(circle at 50% 20%, rgba(229, 168, 60, 0.08), transparent 34rem),
+                linear-gradient(135deg, #11110e 0%, var(--wall) 50%, #17150f 100%);
+            color: var(--paper);
+            font-family: "Courier New", Courier, monospace;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            text-align: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            background-image: linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px);
+            background-size: 100% 4px;
+            content: "";
+            inset: 0;
+            opacity: .45;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .page {
+            max-width: 720px;
+            position: relative;
+            width: 100%;
+        }
+
+        .warning-tape {
+            background: repeating-linear-gradient(-45deg, var(--warning) 0 18px, #19150d 18px 36px);
+            height: 13px;
+            margin: 0 auto 1.5rem;
+            max-width: 610px;
+            transform: rotate(-1deg);
         }
 
         .message-box {
-            border: 2px solid #fce78a;
-            padding: 30px 40px;
-            border-radius: 6px;
-            background-color: rgba(20, 20, 20, 0.9);
-            box-shadow: 0 0 15px rgba(252, 231, 138, 0.2);
-            max-width: 80%;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, .55), 0 0 0 7px rgba(0, 0, 0, .2);
+            padding: clamp(2rem, 7vw, 4.5rem);
+            text-align: center;
         }
 
-        p {
-            font-size: 1.2rem;
+        .eyebrow {
+            color: var(--warning);
+            font-size: .72rem;
+            letter-spacing: .2em;
+            margin: 0 0 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .signal {
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            display: flex;
+            font-size: 2.2rem;
+            height: 84px;
+            justify-content: center;
+            margin: 0 auto 1.7rem;
+            position: relative;
+            width: 84px;
+        }
+
+        .signal::after {
+            border: 1px solid rgba(229, 168, 60, .28);
+            border-radius: 50%;
+            content: "";
+            inset: -9px;
+            position: absolute;
+        }
+
+        h1 {
+            color: #f3e7b3;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(2.4rem, 8vw, 4.5rem);
+            font-weight: 400;
+            letter-spacing: -.04em;
+            line-height: .95;
             margin: 0;
-            letter-spacing: 1px;
-            line-height: 1.5;
-            text-transform: lowercase;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.7;
+            margin: 1.5rem auto 2.5rem;
+            max-width: 500px;
+        }
+
+        .status {
+            border-top: 1px solid var(--line);
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(2, 1fr);
+            margin: 0 auto 2rem;
+            padding-top: 1.5rem;
+            text-align: left;
+        }
+
+        .status-label {
+            color: var(--muted);
+            display: block;
+            font-size: .68rem;
+            letter-spacing: .12em;
+            margin-bottom: .4rem;
+            text-transform: uppercase;
+        }
+
+        .status-value {
+            color: var(--paper);
+            font-size: .9rem;
+        }
+
+        .status-value::before {
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            content: "";
+            display: inline-block;
+            height: 7px;
+            margin: 0 .55rem .05rem 0;
+            width: 7px;
+        }
+
+        .footer {
+            color: #6e6b5b;
+            font-size: .7rem;
+            letter-spacing: .08em;
+            line-height: 1.6;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 480px) {
+            .status {
+                grid-template-columns: 1fr;
+            }
+
+            .message-box {
+                padding: 2.5rem 1.5rem;
+            }
         }
     </style>
 </head>
 <body>
-
-    <div class="message-box">
-        <p>oh no! this game is under construction. Sorry...</p>
-    </div>
-
+    <main class="page">
+        <div class="warning-tape" aria-hidden="true"></div>
+        <section class="message-box" aria-labelledby="page-title">
+            <p class="eyebrow">/// Restricted area &middot; Sector 01</p>
+            <div class="signal" aria-hidden="true">&#9888;</div>
+            <h1 id="page-title">Something is<br>being built.</h1>
+            <p class="subtitle">
+                The lights are on, the halls are empty, and the game is still under construction.
+                Check back soon. Try not to wander too far.
+            </p>
+            <div class="status" aria-label="Project status">
+                <div>
+                    <span class="status-label">System</span>
+                    <span class="status-value">Online</span>
+                </div>
+                <div>
+                    <span class="status-label">Game status</span>
+                    <span class="status-value">In progress</span>
+                </div>
+            </div>
+            <p class="footer">Backrooms Game // Please stand by</p>
+        </section>
+        <div class="warning-tape" aria-hidden="true"></div>
+    </main>
 </body>
 </html>
