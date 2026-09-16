@@ -305,21 +305,22 @@
             if (!audioListener || !THREE.PositionalAudio) return;
             const sound = new THREE.PositionalAudio(audioListener);
             sound.setRefDistance(5);
-            sound.setRolloffFactor(1.5);
+            sound.setMaxDistance(24);
+            sound.setRolloffFactor(1.1);
             sound.setDistanceModel('inverse');
-            sound.setVolume(0.08 * globalVolume);
+            sound.setVolume(0.2 * globalVolume);
             light.add(sound);
             light.userData.positionalSound = sound;
             new THREE.AudioLoader().load('/assets/lightsound1.wav', buffer => {
                 if (!light.parent || light.userData.positionalSound !== sound) return;
                 sound.setBuffer(buffer);
                 sound.setLoop(true);
-                if (audioCtx && audioCtx.state === 'running') sound.play();
+                startLightSounds();
             }, undefined, () => console.warn("Fluorescent light audio unavailable; continuing silently."));
         }
         function updateLightAudioVolume() {
             fluorescentLights.forEach(light => {
-                if (light.userData.positionalSound) light.userData.positionalSound.setVolume(0.08 * globalVolume);
+                if (light.userData.positionalSound) light.userData.positionalSound.setVolume(0.2 * globalVolume);
             });
         }
         function cleanupLightAudio() {
@@ -329,9 +330,12 @@
             });
         }
         function startLightSounds() {
+            if (THREE.AudioContext && THREE.AudioContext.getContext().state === 'suspended') {
+                THREE.AudioContext.getContext().resume().catch(() => {});
+            }
             fluorescentLights.forEach(light => {
                 const sound = light.userData.positionalSound;
-                if (sound && sound.buffer && !sound.isPlaying) {
+                if (sound && sound.buffer && !sound.isPlaying && THREE.AudioContext.getContext().state === 'running') {
                     try { sound.play(); } catch (e) {}
                 }
             });
@@ -735,7 +739,14 @@
                         if ((x % 3 === 0) && (z % 3 === 0)) {
                             let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
                             light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
-                            scene.add(light); fluorescentLights.push(light);
+                            const fixture = new THREE.Mesh(
+                                new THREE.BoxGeometry(1.6, 0.12, 0.55),
+                                new THREE.MeshBasicMaterial({ color: 0xffffee })
+                            );
+                            fixture.position.set(0, 0.24, 0);
+                            light.add(fixture);
+                            scene.add(light);
+                            fluorescentLights.push(light);
                             if (audioListener) attachLightSound(light);
                         }
                     }
