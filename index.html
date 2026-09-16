@@ -227,14 +227,16 @@
         let scene, camera, renderer, socket = null;
         let prevTime = performance.now();
         let gameActive = false, isPaused = false, isDead = false, inCommandCentre = false;
-        let isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        const touchCapable = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        let isMobile = touchCapable && (window.matchMedia('(pointer: coarse)').matches || Math.min(window.innerWidth, window.innerHeight) < 700);
         let controllerDetected = false;
+        let pointerLockActive = false, pointerLockSupported = false;
         
         const GRAVITY = 18.0, JUMP_FORCE = 6.5, DEFAULT_EYE_HEIGHT = 1.6;
         let lookSensitivity = 1.0;
         let globalVolume = 0.5;
 
-        let audioCtx = null, alarmOscillator = null, alarmGain = null;
+        let audioCtx = null, audioListener = null, alarmOscillator = null, alarmGain = null;
         let localStream = null, micMuted = false, isAdmin = false; 
         const peers = {}; 
 
@@ -244,6 +246,10 @@
         let isFlickering = false;
         let dpadLeftPressed = false;
         let gamepadSprintActive = false;
+        let activeGamepadIndex = null;
+        let gamepadMoveX = 0, gamepadMoveY = 0, gamepadLookX = 0, gamepadLookY = 0;
+        let previousGamepadButtons = [];
+        let lastMovementSentAt = 0;
 
         let adminFlyMode = false;
         let adminSpeedMultiplier = 1.0;
@@ -282,15 +288,67 @@
 
         const settings = { smoothing: 0.4 };
 
-        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume().then(startLightSounds).catch(() => {});
+            if (THREE.AudioContext) {
+                const threeAudioContext = THREE.AudioContext.getContext();
+                if (threeAudioContext.state === 'suspended') threeAudioContext.resume().then(startLightSounds).catch(() => {});
+            }
+            startLightSounds();
+        }
         function playClickSound() { if (!audioCtx) return; let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain(); osc.type = 'triangle'; osc.frequency.setValueAtTime(1200, audioCtx.currentTime); gain.gain.setValueAtTime(0.1 * globalVolume, audioCtx.currentTime); gain.connect(audioCtx.destination); osc.connect(gain); osc.start(); osc.stop(audioCtx.currentTime + 0.04); }
         function startAlarmSiren() { if (!audioCtx || alarmOscillator) return; alarmOscillator = audioCtx.createOscillator(); alarmGain = audioCtx.createGain(); alarmOscillator.type = 'sawtooth'; alarmOscillator.frequency.setValueAtTime(220, audioCtx.currentTime); alarmGain.gain.setValueAtTime(0, audioCtx.currentTime); alarmOscillator.connect(alarmGain); alarmGain.connect(audioCtx.destination); alarmOscillator.start(); updateAlarmSirenLoop(); }
         function updateAlarmSirenLoop() { if (!alarmOscillator || !alarmActive) return; let time = audioCtx.currentTime; alarmOscillator.frequency.linearRampToValueAtTime(340, time + 0.4); alarmOscillator.frequency.linearRampToValueAtTime(220, time + 0.8); alarmGain.gain.linearRampToValueAtTime(0.12 * globalVolume, time + 0.1); alarmGain.gain.linearRampToValueAtTime(0, time + 0.8); setTimeout(updateAlarmSirenLoop, 800); }
         function stopAlarmSiren() { if (alarmOscillator) { try { alarmOscillator.stop(); } catch(e){} alarmOscillator.disconnect(); alarmOscillator = null; } }
+        function attachLightSound(light) {
+            if (!audioListener || !THREE.PositionalAudio) return;
+            const sound = new THREE.PositionalAudio(audioListener);
+            sound.setRefDistance(5);
+            sound.setRolloffFactor(1.5);
+            sound.setDistanceModel('inverse');
+            sound.setVolume(0.08 * globalVolume);
+            light.add(sound);
+            light.userData.positionalSound = sound;
+            new THREE.AudioLoader().load('/assets/lightsound1.wav', buffer => {
+                if (!light.parent || light.userData.positionalSound !== sound) return;
+                sound.setBuffer(buffer);
+                sound.setLoop(true);
+                if (audioCtx && audioCtx.state === 'running') sound.play();
+            }, undefined, () => console.warn("Fluorescent light audio unavailable; continuing silently."));
+        }
+        function updateLightAudioVolume() {
+            fluorescentLights.forEach(light => {
+                if (light.userData.positionalSound) light.userData.positionalSound.setVolume(0.08 * globalVolume);
+            });
+        }
+        function cleanupLightAudio() {
+            fluorescentLights.forEach(light => {
+                const sound = light.userData.positionalSound;
+                if (sound) { if (sound.isPlaying) sound.stop(); sound.disconnect(); }
+            });
+        }
+        function startLightSounds() {
+            fluorescentLights.forEach(light => {
+                const sound = light.userData.positionalSound;
+                if (sound && sound.buffer && !sound.isPlaying) {
+                    try { sound.play(); } catch (e) {}
+                }
+            });
+        }
 
         function createWallpaperTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#cbb879'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#beab6c'; for (let i = 0; i < 256; i += 32) ctx.fillRect(i, 0, 4, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
         function createCarpetTexture() { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
         function createCeilingTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#b5b2a5'; ctx.strokeRect(0, 0, 256, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
+        function loadTextureWithFallback(url, fallbackFactory, onLoad) {
+            const fallback = fallbackFactory();
+            const loader = new THREE.TextureLoader();
+            loader.load(url, texture => {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                onLoad(texture);
+            }, undefined, () => console.warn(`Texture unavailable: ${url}; using generated fallback.`));
+            return fallback;
+        }
 
         function startGame() {
             const nickInput = document.getElementById('player-nickname-input');
@@ -304,11 +362,17 @@
             init(); 
             initMultiplayer();
 
-            if (!isMobile) document.body.requestPointerLock();
+            requestPointerLock();
 
-            navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-                .then(stream => { localStream = stream; if(micMuted) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted); })
-                .catch(err => console.warn("Microphone details missing.", err));
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+                    .then(stream => {
+                        localStream = stream;
+                        if (micMuted) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+                        attachLocalStreamToPeers();
+                    })
+                    .catch(err => console.warn("Microphone details missing.", err));
+            }
         }
 
         function accessCommandCentre() {
@@ -335,27 +399,58 @@
         }
 
         function spawnRemotePlayer(id, info) {
-            if (remotePlayers[id] || !scene) return;
+            if (!scene || !info || !info.pos) return;
+            if (remotePlayers[id]) {
+                const network = remotePlayers[id].userData.network;
+                network.target.copy(info.pos);
+                if (Number.isFinite(info.rotY)) network.targetYaw = info.rotY;
+                if (info.nickname) network.nickname = info.nickname;
+                return;
+            }
             const model = createMinecraftModel(info.color || 0xdcb85c);
-            model.position.copy(info.pos || new THREE.Vector3(6, 0, 6));
+            model.position.set(info.pos.x || 0, info.pos.y || 0, info.pos.z || 0);
+            model.rotation.y = Number.isFinite(info.rotY) ? info.rotY : 0;
+            model.userData.network = {
+                target: model.position.clone(),
+                targetYaw: model.rotation.y,
+                nickname: info.nickname || "Researcher"
+            };
             scene.add(model);
             remotePlayers[id] = model;
-            cachedPlayerStates[id] = { pos: model.position, nickname: info.nickname || "Researcher" };
+            cachedPlayerStates[id] = { pos: model.position.clone(), nickname: info.nickname || "Researcher" };
         }
 
         function initMultiplayer() {
             if (typeof io === 'undefined') return;
             socket = io();
-            socket.emit('joinGame', { nickname: userNickname });
+            socket.on('connect', () => socket.emit('joinGame', { nickname: userNickname }));
+            socket.on('disconnect', () => {
+                Object.keys(remotePlayers).forEach(id => {
+                    if (scene) scene.remove(remotePlayers[id]);
+                    delete remotePlayers[id];
+                    delete cachedPlayerStates[id];
+                    cleanupPeer(id);
+                });
+                Object.keys(peers).forEach(cleanupPeer);
+            });
             
             socket.on("currentPlayers", (players) => { 
-                Object.keys(players).forEach(id => { if (id !== socket.id) { spawnRemotePlayer(id, players[id]); createPeer(id, true); } }); 
+                Object.keys(players).forEach(id => {
+                    if (id !== socket.id) { spawnRemotePlayer(id, players[id]); if (!peers[id]) createPeer(id, true); }
+                });
             });
-            socket.on("newPlayer", (data) => { spawnRemotePlayer(data.id, data.info); });
+            socket.on("newPlayer", (data) => {
+                if (data && data.id !== socket.id) spawnRemotePlayer(data.id, data.info);
+            });
             socket.on("playerMoved", (data) => { 
-                if (remotePlayers[data.id]) { 
-                    remotePlayers[data.id].position.set(data.pos.x, data.pos.y, data.pos.z); 
-                    remotePlayers[data.id].rotation.y = data.rotY; 
+                if (!data || !data.id || !data.pos) return;
+                if (remotePlayers[data.id]) {
+                    const network = remotePlayers[data.id].userData.network;
+                    if (network) {
+                        network.target.set(data.pos.x, data.pos.y, data.pos.z);
+                        network.targetYaw = Number.isFinite(data.rotY) ? data.rotY : network.targetYaw;
+                        network.nickname = data.nickname || network.nickname;
+                    }
                 } 
                 cachedPlayerStates[data.id] = { pos: new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), nickname: data.nickname || "Researcher" };
             });
@@ -370,10 +465,15 @@
                 document.getElementById('cc-player-count').innerText = count;
             });
 
-            socket.on("webrtc-signal", (data) => { if (!peers[data.from]) createPeer(data.from, false); peers[data.from].signal(data.signal); });
+            socket.on("webrtc-signal", (data) => {
+                if (!data || !data.from || !data.signal) return;
+                const peer = peers[data.from] || createPeer(data.from, false);
+                if (peer) peer.signal(data.signal);
+            });
             socket.on("userDisconnected", (id) => { 
                 if (remotePlayers[id]) { scene.remove(remotePlayers[id]); delete remotePlayers[id]; } 
                 delete cachedPlayerStates[id];
+                cleanupPeer(id);
             });
 
             socket.on("sync-alarm", (state) => { alarmActive = state; if (alarmActive) startAlarmSiren(); else stopAlarmSiren(); });
@@ -394,38 +494,94 @@
         }
 
         function createPeer(targetId, isInitiator) {
-            const peer = new SimplePeer({ initiator: isInitiator, trickle: false, stream: localStream });
+            if (peers[targetId] || typeof SimplePeer === 'undefined') return peers[targetId];
+            const peer = new SimplePeer({ initiator: isInitiator, trickle: false });
+            peer.remoteId = targetId;
+            peer.localTracksAdded = false;
             peer.on('signal', (signalData) => { socket.emit('webrtc-signal', { to: targetId, signal: signalData }); });
-            peer.on('stream', (stream) => { let audio = document.createElement('audio'); audio.srcObject = stream; audio.play(); peer.audioElement = audio; });
+            peer.on('stream', (stream) => {
+                if (peer.audioElement) peer.audioElement.remove();
+                const audio = document.createElement('audio');
+                audio.autoplay = true; audio.playsInline = true; audio.srcObject = stream;
+                audio.volume = 0;
+                document.body.appendChild(audio);
+                audio.play().catch(() => {});
+                peer.audioElement = audio;
+            });
+            peer.on('close', () => cleanupPeer(targetId));
+            peer.on('error', () => cleanupPeer(targetId));
             peers[targetId] = peer;
+            attachLocalStreamToPeer(peer);
+            return peer;
+        }
+
+        function attachLocalStreamToPeer(peer) {
+            if (!peer || peer.destroyed || peer.localTracksAdded || !localStream || !peer.addTrack) return;
+            localStream.getAudioTracks().forEach(track => peer.addTrack(track, localStream));
+            peer.localTracksAdded = true;
+        }
+
+        function attachLocalStreamToPeers() {
+            Object.keys(peers).forEach(id => attachLocalStreamToPeer(peers[id]));
+        }
+
+        function cleanupPeer(id) {
+            const peer = peers[id];
+            if (!peer) return;
+            if (peer.audioElement) { peer.audioElement.pause(); peer.audioElement.srcObject = null; peer.audioElement.remove(); }
+            delete peers[id];
+            if (!peer.destroyed) { try { peer.destroy(); } catch (e) {} }
+        }
+
+        function updateProximityAudio() {
+            Object.keys(peers).forEach(id => {
+                const peer = peers[id];
+                if (!peer.audioElement || !remotePlayers[id]) return;
+                const distance = camera.position.distanceTo(remotePlayers[id].position);
+                const maxDistance = 18;
+                const proximity = Math.max(0, 1 - distance / maxDistance);
+                peer.audioElement.volume = Math.min(1, globalVolume * proximity * proximity);
+            });
+        }
+
+        function applyDeadzone(value, deadzone) {
+            if (Math.abs(value) <= deadzone) return 0;
+            const sign = value < 0 ? -1 : 1;
+            return sign * (Math.abs(value) - deadzone) / (1 - deadzone);
+        }
+
+        function chooseGamepad() {
+            const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+            if (!pads.length) { activeGamepadIndex = null; return null; }
+            const active = pads.find(pad => pad.index === activeGamepadIndex);
+            return active || pads.find(pad => pad.mapping === 'standard') || pads[0];
         }
 
         function handleGamepadInput() {
-            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-            const gp = gamepads[0];
-            if (!gp) return;
+            const gp = chooseGamepad();
+            gamepadMoveX = gamepadMoveY = gamepadLookX = gamepadLookY = 0;
+            gamepadSprintActive = false;
+            if (!gp) { previousGamepadButtons = []; return; }
 
             if (!controllerDetected) { controllerDetected = true; activateResponsiveUI(); }
 
-            let stickX = gp.axes[0]; let stickY = gp.axes[1];
-            if (Math.abs(stickX) < 0.15) stickX = 0; if (Math.abs(stickY) < 0.15) stickY = 0;
-            
-            window.keysPressed.d = stickX > 0.2; window.keysPressed.a = stickX < -0.2;
-            window.keysPressed.s = stickY > 0.2; window.keysPressed.w = stickY < -0.2;
+            gamepadMoveX = applyDeadzone(gp.axes[0] || 0, 0.15);
+            gamepadMoveY = -applyDeadzone(gp.axes[1] || 0, 0.15);
+            gamepadLookX = applyDeadzone(gp.axes[2] || 0, 0.15);
+            gamepadLookY = applyDeadzone(gp.axes[3] || 0, 0.15);
 
-            let lookX = gp.axes[2]; let lookY = gp.axes[3];
-            if (Math.abs(lookX) > 0.15) player.targetYaw -= lookX * 0.03 * lookSensitivity;
-            if (Math.abs(lookY) > 0.15) {
-                player.targetPitch -= lookY * 0.02 * lookSensitivity;
+            if (gamepadLookX) player.targetYaw -= gamepadLookX * 0.03 * lookSensitivity;
+            if (gamepadLookY) {
+                player.targetPitch -= gamepadLookY * 0.02 * lookSensitivity;
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             }
 
-            gamepadSprintActive = gp.buttons[6].pressed;
-            if (gp.buttons[0].pressed && player.isGrounded) handleJumpInput();
-
-            if (gp.buttons[14].pressed) {
-                if (!dpadLeftPressed) { toggleFlashlight(); dpadLeftPressed = true; }
-            } else { dpadLeftPressed = false; }
+            gamepadSprintActive = !!(gp.buttons[6] && gp.buttons[6].pressed);
+            const jumpPressed = !!(gp.buttons[0] && gp.buttons[0].pressed);
+            const flashlightPressed = !!(gp.buttons[14] && gp.buttons[14].pressed);
+            if (jumpPressed && !previousGamepadButtons[0]) handleJumpInput();
+            if (flashlightPressed && !previousGamepadButtons[14]) toggleFlashlight();
+            previousGamepadButtons = gp.buttons.map(button => !!button.pressed);
         }
 
         function activateResponsiveUI() {
@@ -466,7 +622,11 @@
             document.getElementById('cc-cam-label').innerText = ccCamPositions[ccCamIndex].label; 
         }
 
-        function toggleMic() { micMuted = !micMuted; if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted); document.getElementById('btn-mic-toggle').classList.toggle('muted', micMuted); }
+        function toggleMic() {
+            micMuted = !micMuted;
+            if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+            document.getElementById('btn-mic-toggle').classList.toggle('muted', micMuted);
+        }
         
         // FIXED ADMIN LOGIN DISP SYSTEM
         function checkAdminLogin() { 
@@ -505,8 +665,25 @@
         function requestToggleBlackout() { if (isAdmin && socket) socket.emit('admin-toggle-blackout', !blackoutActive); }
         function requestTriggerFlicker() { if (isAdmin && socket) socket.emit('admin-trigger-flicker'); }
 
-        function pauseGame() { if (!gameActive || isPaused) return; isPaused = true; document.getElementById('pause-menu').style.display = 'flex'; }
-        function resumeGame() { isPaused = false; document.getElementById('pause-menu').style.display = 'none'; prevTime = performance.now(); }
+        function canUsePointerLock() {
+            return renderer && renderer.domElement && typeof renderer.domElement.requestPointerLock === 'function' && !isMobile;
+        }
+        function requestPointerLock() {
+            if (!canUsePointerLock() || isPaused) return;
+            try { renderer.domElement.requestPointerLock(); } catch (e) { console.warn("Pointer lock unavailable.", e); }
+        }
+        function pauseGame() {
+            if (!gameActive || isPaused) return;
+            isPaused = true;
+            if (document.pointerLockElement === renderer.domElement && document.exitPointerLock) document.exitPointerLock();
+            document.getElementById('pause-menu').style.display = 'flex';
+        }
+        function resumeGame() {
+            isPaused = false;
+            document.getElementById('pause-menu').style.display = 'none';
+            prevTime = performance.now();
+            requestPointerLock();
+        }
         function toggleFlashlight() { playClickSound(); flashlightOn = !flashlightOn; flashlight.intensity = flashlightOn ? 3.5 : 0; document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF"); }
         function handleJumpInput() { if (player.isGrounded || adminFlyMode) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
 
@@ -516,7 +693,22 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); camera.rotation.order = 'YXZ'; 
 
             renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.domElement.id = 'game-canvas';
+            renderer.domElement.tabIndex = 0;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
+            pointerLockSupported = typeof renderer.domElement.requestPointerLock === 'function';
+            renderer.domElement.addEventListener('click', () => {
+                if (gameActive && isPaused) resumeGame();
+                else if (gameActive) requestPointerLock();
+            });
+            document.addEventListener('pointerlockchange', () => {
+                pointerLockActive = document.pointerLockElement === renderer.domElement;
+                if (!pointerLockActive && gameActive && !isPaused && !isMobile) pauseGame();
+            });
+            document.addEventListener('pointerlockerror', () => {
+                pointerLockActive = false;
+                if (gameActive && !isPaused && !isMobile) pauseGame();
+            });
 
             ccCamera = new THREE.PerspectiveCamera(65, 320 / 220, 0.1, 100); 
             ccCamera.position.copy(ccCamPositions[0].pos);
@@ -526,10 +718,12 @@
             flashlight = new THREE.SpotLight('#ffffff', 0, 15, Math.PI / 5, 0.5, 1); camera.add(flashlight);
             flashlight.position.set(0, 0, 0); flashlight.target = new THREE.Object3D(); camera.add(flashlight.target); flashlight.target.position.set(0, 0, -1);
             scene.add(camera);
+            audioListener = new THREE.AudioListener();
+            camera.add(audioListener);
 
-            const wallMat = new THREE.MeshLambertMaterial({ map: createWallpaperTexture() });
-            const floorMat = new THREE.MeshLambertMaterial({ map: createCarpetTexture() });
-            const ceilingMat = new THREE.MeshLambertMaterial({ map: createCeilingTexture() });
+            const wallMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/wallpaper1.jpg', createWallpaperTexture, texture => { wallMat.map = texture; wallMat.needsUpdate = true; }) });
+            const floorMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/carpet1.jpg', createCarpetTexture, texture => { floorMat.map = texture; floorMat.needsUpdate = true; }) });
+            const ceilingMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/ceiling1.jpg', createCeilingTexture, texture => { ceilingMat.map = texture; ceilingMat.needsUpdate = true; }) });
 
             for (let z = 0; z < map.length; z++) {
                 for (let x = 0; x < map[z].length; x++) {
@@ -539,11 +733,15 @@
                         const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
                         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
                         if ((x % 3 === 0) && (z % 3 === 0)) {
-                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2); light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE); scene.add(light); fluorescentLights.push(light);
+                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
+                            light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
+                            scene.add(light); fluorescentLights.push(light);
+                            if (audioListener) attachLightSound(light);
                         }
                     }
                 }
             }
+            startLightSounds();
 
             if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; activateResponsiveUI(); }
             setupControls();
@@ -559,12 +757,27 @@
                 player.mobileSprintOn = !player.mobileSprintOn; 
             });
 
-            document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); });
+            document.getElementById('slider-volume').addEventListener('input', (e) => { globalVolume = parseFloat(e.target.value); updateLightAudioVolume(); });
             document.getElementById('slider-sens').addEventListener('input', (e) => { lookSensitivity = parseFloat(e.target.value); });
             document.getElementById('slider-admin-speed').addEventListener('input', (e) => { adminSpeedMultiplier = parseFloat(e.target.value); });
             
             window.addEventListener('resize', onWindowResize); 
-            window.addEventListener("gamepadconnected", () => { controllerDetected = true; activateResponsiveUI(); });
+            window.addEventListener("gamepadconnected", event => {
+                if (activeGamepadIndex === null || event.gamepad.mapping === 'standard') activeGamepadIndex = event.gamepad.index;
+                controllerDetected = true; activateResponsiveUI();
+            });
+            window.addEventListener("gamepaddisconnected", event => {
+                if (event.gamepad.index === activeGamepadIndex) {
+                    activeGamepadIndex = null;
+                    previousGamepadButtons = [];
+                    gamepadSprintActive = false;
+                }
+            });
+            window.addEventListener('beforeunload', () => {
+                cleanupLightAudio();
+                Object.keys(peers).forEach(cleanupPeer);
+                if (localStream) localStream.getTracks().forEach(track => track.stop());
+            });
 
             animate();
         }
@@ -590,38 +803,53 @@
                 player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch));
             });
 
-            // Touch Joystick Engine
+            // Pointer-based touch controls keep movement and looking independent.
             const joyZone = document.getElementById('joystick-zone'), joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
-            let joyTouchId = null, joyStartPos = new THREE.Vector2();
-            joyZone.addEventListener('touchstart', (e) => { const touch = e.changedTouches[0]; joyTouchId = touch.identifier; joyStartPos.set(touch.clientX, touch.clientY); joyBase.style.display = 'block'; joyBase.style.left = `${touch.clientX}px`; joyBase.style.top = `${touch.clientY}px`; });
-            joyZone.addEventListener('touchmove', (e) => {
-                for (let touch of e.changedTouches) {
-                    if (touch.identifier === joyTouchId) {
-                        let dist = Math.min(new THREE.Vector2(touch.clientX, touch.clientY).distanceTo(joyStartPos), 40);
-                        let angle = Math.atan2(touch.clientY - joyStartPos.y, touch.clientX - joyStartPos.x);
-                        joyStick.style.left = `${20 + Math.cos(angle) * dist}px`; joyStick.style.top = `${20 + Math.sin(angle) * dist}px`;
-                        player.moveDir.set((Math.cos(angle)*dist)/40, -(Math.sin(angle)*dist)/40);
-                    }
-                }
+            let joyPointerId = null, joyStartPos = new THREE.Vector2();
+            function resetJoystick() {
+                joyPointerId = null; joyBase.style.display = 'none'; joyStick.style.left = '20px'; joyStick.style.top = '20px'; player.moveDir.set(0, 0);
+            }
+            joyZone.addEventListener('pointerdown', event => {
+                if (!touchCapable || joyPointerId !== null || event.pointerType === 'mouse') return;
+                joyPointerId = event.pointerId;
+                joyStartPos.set(event.clientX, event.clientY);
+                joyBase.style.display = 'block'; joyBase.style.left = `${event.clientX}px`; joyBase.style.top = `${event.clientY}px`;
+                joyZone.setPointerCapture(event.pointerId);
+                event.preventDefault();
             });
-            joyZone.addEventListener('touchend', () => { joyTouchId = null; joyBase.style.display = 'none'; player.moveDir.set(0,0); });
+            joyZone.addEventListener('pointermove', event => {
+                if (event.pointerId !== joyPointerId) return;
+                const dx = event.clientX - joyStartPos.x, dy = event.clientY - joyStartPos.y;
+                const distance = Math.min(Math.hypot(dx, dy), 40);
+                const angle = Math.atan2(dy, dx);
+                joyStick.style.left = `${20 + Math.cos(angle) * distance}px`;
+                joyStick.style.top = `${20 + Math.sin(angle) * distance}px`;
+                player.moveDir.set(Math.cos(angle) * distance / 40, -Math.sin(angle) * distance / 40);
+                event.preventDefault();
+            });
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => joyZone.addEventListener(type, event => {
+                if (joyPointerId === event.pointerId || type === 'lostpointercapture') resetJoystick();
+            }));
 
-            const lookZone = document.getElementById('look-zone'); let lookTouchId = null, lookLastPos = new THREE.Vector2();
-            lookZone.addEventListener('touchstart', (e) => { 
-                if(e.target.classList.contains('ui-btn') || e.target.closest('.top-ui-cluster')) return; 
-                const touch = e.changedTouches[0]; lookTouchId = touch.identifier; lookLastPos.set(touch.clientX, touch.clientY); 
+            const lookZone = document.getElementById('look-zone');
+            let lookPointerId = null, lookLastPos = new THREE.Vector2();
+            lookZone.addEventListener('pointerdown', event => {
+                if (event.target.classList.contains('ui-btn') || event.target.closest('.top-ui-cluster')) return;
+                if (lookPointerId !== null || event.pointerType === 'mouse') return;
+                lookPointerId = event.pointerId; lookLastPos.set(event.clientX, event.clientY);
+                lookZone.setPointerCapture(event.pointerId);
+                event.preventDefault();
             });
-            lookZone.addEventListener('touchmove', (e) => {
-                if (isPaused || lookTouchId === null) return;
-                for (let touch of e.changedTouches) {
-                    if (touch.identifier === lookTouchId) {
-                        let deltaX = touch.clientX - lookLastPos.x; let deltaY = touch.clientY - lookLastPos.y;
-                        player.targetYaw -= deltaX * 0.005 * lookSensitivity; player.targetPitch -= deltaY * 0.005 * lookSensitivity;
-                        player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch)); lookLastPos.set(touch.clientX, touch.clientY);
-                    }
-                }
+            lookZone.addEventListener('pointermove', event => {
+                if (isPaused || event.pointerId !== lookPointerId) return;
+                const deltaX = event.clientX - lookLastPos.x, deltaY = event.clientY - lookLastPos.y;
+                player.targetYaw -= deltaX * 0.005 * lookSensitivity; player.targetPitch -= deltaY * 0.005 * lookSensitivity;
+                player.targetPitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, player.targetPitch)); lookLastPos.set(event.clientX, event.clientY);
+                event.preventDefault();
             });
-            lookZone.addEventListener('touchend', () => { lookTouchId = null; });
+            ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => lookZone.addEventListener(type, event => {
+                if (lookPointerId === event.pointerId || type === 'lostpointercapture') lookPointerId = null;
+            }));
         }
 
         function checkGridCollision(pos) { 
@@ -659,6 +887,9 @@
                     moveX = (-Math.sin(player.yaw) * player.moveDir.y + -Math.sin(player.yaw - Math.PI/2) * player.moveDir.x);
                     moveZ = (-Math.cos(player.yaw) * player.moveDir.y + -Math.cos(player.yaw - Math.PI/2) * player.moveDir.x);
                 }
+                // Controller input is additive, so keyboard movement is never lost.
+                moveX += -Math.sin(player.yaw) * gamepadMoveY + Math.cos(player.yaw) * gamepadMoveX;
+                moveZ += -Math.cos(player.yaw) * gamepadMoveY - Math.sin(player.yaw) * gamepadMoveX;
 
                 let mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
                 if (mag > 0) { moveX = (moveX / mag) * moveSpeed * delta; moveZ = (moveZ / mag) * moveSpeed * delta; }
@@ -678,10 +909,22 @@
                 camera.position.set(player.pos.x, player.pos.y, player.pos.z);
                 camera.rotation.y = player.yaw; camera.rotation.x = player.pitch;
 
-                if (socket && socket.connected) {
+                if (socket && socket.connected && time - lastMovementSentAt >= 50) {
+                    lastMovementSentAt = time;
                     socket.emit("playerMovement", { pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z }, rotY: player.yaw });
                 }
             }
+
+            Object.keys(remotePlayers).forEach(id => {
+                const network = remotePlayers[id].userData.network;
+                if (!network) return;
+                remotePlayers[id].position.lerp(network.target, 1 - Math.exp(-12 * delta));
+                let yawDelta = network.targetYaw - remotePlayers[id].rotation.y;
+                yawDelta = Math.atan2(Math.sin(yawDelta), Math.cos(yawDelta));
+                remotePlayers[id].rotation.y += yawDelta * (1 - Math.exp(-12 * delta));
+                if (cachedPlayerStates[id]) cachedPlayerStates[id].pos.copy(remotePlayers[id].position);
+            });
+            if (camera) updateProximityAudio();
 
             if (!isFlickering) {
                 if (alarmActive) {
