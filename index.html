@@ -238,7 +238,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.11.1/simplepeer.min.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
     <script>
         window.keysPressed = { w: false, s: false, a: false, d: false, Shift: false, q: false, e: false };
@@ -260,6 +260,7 @@
         const peers = {}; 
 
         let userNickname = "Player";
+        const multiplayerServerUrl = window.BACKROOMS_SERVER_URL || localStorage.getItem('backroomsServerUrl') || new URLSearchParams(window.location.search).get('server') || window.location.origin;
         const remotePlayers = {};
         const cachedPlayerStates = {}; 
         const chatBubbles = {};
@@ -477,7 +478,11 @@
 
         function initMultiplayer() {
             if (typeof io === 'undefined') return;
-            socket = io();
+            if (typeof io !== 'function') {
+                console.warn('Socket.IO client unavailable; multiplayer is disabled.');
+                return;
+            }
+            socket = io(multiplayerServerUrl, { transports: ['websocket', 'polling'] });
             socket.on('connect', () => socket.emit('joinGame', { nickname: userNickname }));
             socket.on('disconnect', () => {
                 Object.keys(remotePlayers).forEach(id => {
