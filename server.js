@@ -27,7 +27,9 @@ function validateMovement(data) {
     if ([x, y, z].some(value => Math.abs(value) > WORLD_LIMIT) || Math.abs(data.rotY) > Math.PI * 4) return null;
     return {
         pos: { x, y, z },
-        rotY: data.rotY
+        rotY: data.rotY,
+        flashlightOn: data.flashlightOn === true,
+        ambientLightOn: data.ambientLightOn === true
     };
 }
 
@@ -37,6 +39,8 @@ function publicPlayer(player) {
         rotY: player.rotY,
         color: player.color,
         flashlightOn: player.flashlightOn,
+        ambientLightOn: player.ambientLightOn,
+        modelType: player.modelType,
         nickname: player.nickname
     };
 }
@@ -50,10 +54,12 @@ io.on('connection', (socket) => {
             ? data.nickname.trim().slice(0, 14)
             : '';
         players[socket.id] = {
-            pos: { x: 3, y: 0, z: 3 },
+            pos: { x: 6, y: 0, z: 6 },
             rotY: 0,
             color: hexColors[Math.floor(Math.random() * hexColors.length)],
             flashlightOn: false,
+            ambientLightOn: false,
+            modelType: ['researcher', 'engineer', 'scout'][Math.floor(Math.random() * 3)],
             nickname: nickname || "Unregistered"
         };
         socket.data.joined = true;
@@ -75,14 +81,37 @@ io.on('connection', (socket) => {
         socket.data.lastMovementAt = now;
         players[socket.id].pos = movement.pos;
         players[socket.id].rotY = movement.rotY;
+        players[socket.id].flashlightOn = movement.flashlightOn;
+        players[socket.id].ambientLightOn = movement.ambientLightOn;
             
         socket.broadcast.emit('playerMoved', {
             id: socket.id,
             nickname: players[socket.id].nickname,
             color: players[socket.id].color,
+            modelType: players[socket.id].modelType,
+            flashlightOn: players[socket.id].flashlightOn,
+            ambientLightOn: players[socket.id].ambientLightOn,
             pos: movement.pos,
             rotY: movement.rotY
         });
+    });
+
+    socket.on('playerLightState', (state) => {
+        if (!socket.data.joined || !players[socket.id] || !state) return;
+        players[socket.id].flashlightOn = state.flashlightOn === true;
+        players[socket.id].ambientLightOn = state.ambientLightOn === true;
+        socket.broadcast.emit('playerLightState', {
+            id: socket.id,
+            flashlightOn: players[socket.id].flashlightOn,
+            ambientLightOn: players[socket.id].ambientLightOn
+        });
+    });
+
+    socket.on('chatMessage', (text) => {
+        if (!socket.data.joined || typeof text !== 'string') return;
+        const cleanText = text.replace(/[<>]/g, '').trim().slice(0, 120);
+        if (!cleanText) return;
+        io.emit('chatMessage', { id: socket.id, nickname: players[socket.id].nickname, text: cleanText });
     });
 
     socket.on('webrtc-signal', (data) => {
@@ -100,14 +129,8 @@ io.on('connection', (socket) => {
     socket.on('admin-minigame-state', (state) => {
         if (!state || typeof state.mode !== 'string') return;
         io.emit('sync-minigame-state', {
-            mode: ['hunt', 'survive', 'patrol', 'stopped'].includes(state.mode) ? state.mode : 'stopped',
+            mode: ['hunt', 'survive', 'patrol', 'escape', 'blackout', 'stopped'].includes(state.mode) ? state.mode : 'stopped',
             running: state.running === true
-        });
-    });
-    socket.on('admin-sync-lights', (state) => {
-        io.emit('sync-lights', {
-            blackout: !!(state && state.blackout),
-            alarm: !!(state && state.alarm)
         });
     });
 

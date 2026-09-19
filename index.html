@@ -193,7 +193,8 @@
                 <button class="admin-action-btn" onclick="setMinigameMode('hunt')">MINIGAME: HUNT</button>
                 <button class="admin-action-btn" onclick="setMinigameMode('survive')">MINIGAME: SURVIVE</button>
                 <button class="admin-action-btn" style="border-color:#ff4444; color:#ff8888;" onclick="stopMinigame()">STOP MINIGAME</button>
-                <button class="admin-action-btn" onclick="syncLightState()">SYNC LIGHTS</button>
+                <button class="admin-action-btn" onclick="setMinigameMode('escape')">MINIGAME: ESCAPE</button>
+                <button class="admin-action-btn" onclick="setMinigameMode('blackout')">MINIGAME: BLACKOUT</button>
             </div>
         </div>
         <button class="ui-btn" style="margin-top:15px; width:100%; max-width:200px;" onclick="resumeGame()">RESUME</button>
@@ -219,7 +220,7 @@
                     <button class="admin-action-btn" onclick="setMinigameMode('hunt')">START HUNT</button>
                     <button class="admin-action-btn" onclick="setMinigameMode('patrol')">START PATROL</button>
                     <button class="admin-action-btn" onclick="stopMinigame()">STOP MINIGAME</button>
-                    <button class="admin-action-btn" onclick="syncLightState()">SYNC LIGHTS</button>
+                    <button class="admin-action-btn" onclick="setMinigameMode('escape')">START ESCAPE</button>
                 </div>
             </div>
             <button class="ui-btn" style="margin-top:15px; border-color:#ff4444; color:#ff8888;" onclick="exitCommandCentre()">DISCONNECT CC</button>
@@ -228,6 +229,11 @@
     
     <div id="joystick-zone"><div id="joystick-base"><div id="joystick-stick"></div></div></div>
     <div id="look-zone"></div>
+    <div id="chat-feed" aria-live="polite"></div>
+    <button id="chat-toggle" class="ui-btn" type="button">CHAT</button>
+    <form id="chat-form" autocomplete="off">
+        <input id="chat-input" maxlength="120" placeholder="Transmit message..." aria-label="Chat message">
+    </form>
     <div id="canvas-container"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -256,6 +262,8 @@
         let userNickname = "Player";
         const remotePlayers = {};
         const cachedPlayerStates = {}; 
+        const chatBubbles = {};
+        let chatReady = false;
         let isFlickering = false;
         let dpadLeftPressed = false;
         let gamepadSprintActive = false;
@@ -364,6 +372,7 @@
             userNickname = nickInput.value.trim();
 
             initAudio();
+            setupChat();
             document.getElementById('instructions').style.display = 'none';
             gameActive = true; 
             
@@ -395,7 +404,7 @@
 
         function exitCommandCentre() { inCommandCentre = false; document.getElementById('command-centre-overlay').style.display = 'none'; }
 
-        function createMinecraftModel(skinColor) {
+        function createMinecraftModel(skinColor, modelType = 'researcher') {
             const group = new THREE.Group();
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshLambertMaterial({ color: 0xffdbac })); head.position.y = 1.3; group.add(head);
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: skinColor })); torso.position.y = 0.8; group.add(torso);
@@ -403,6 +412,23 @@
             const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: 0xffdbac })); rightArm.position.set(0.28, 0.8, 0); group.add(rightArm);
             const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); leftLeg.position.set(-0.1, 0.25, 0); group.add(leftLeg);
             const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); rightLeg.position.set(0.1, 0.25, 0); group.add(rightLeg);
+            const accentColor = modelType === 'engineer' ? 0x4c91c9 : modelType === 'scout' ? 0x7cc576 : 0xdcb85c;
+            const accent = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.24), new THREE.MeshLambertMaterial({ color: accentColor }));
+            accent.position.set(0, 1.53, 0); group.add(accent);
+            if (modelType === 'engineer') {
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.03), new THREE.MeshBasicMaterial({ color: 0x74d9ff }));
+                visor.position.set(0, 1.34, -0.21); group.add(visor);
+            }
+            const light = new THREE.SpotLight(0xfff4c4, 0, 12, Math.PI / 6, 0.45, 1.2);
+            light.position.set(0, 1.05, -0.28);
+            light.target.position.set(0, 0.75, -4);
+            group.add(light, light.target);
+            group.userData.playerLight = light;
+            const ambientGlow = new THREE.PointLight(0xffd98a, 0, 3.5);
+            ambientGlow.position.set(0, 1.1, 0);
+            group.add(ambientGlow);
+            group.userData.ambientGlow = ambientGlow;
+            group.userData.modelType = modelType;
             group.userData.animation = { leftArm, rightArm, leftLeg, rightLeg, phase: Math.random() * Math.PI * 2 };
             return group;
         }
@@ -426,16 +452,24 @@
                 network.target.copy(info.pos);
                 if (Number.isFinite(info.rotY)) network.targetYaw = info.rotY;
                 if (info.nickname) network.nickname = info.nickname;
+                network.flashlightOn = !!info.flashlightOn;
+                network.ambientLightOn = !!info.ambientLightOn;
+                if (remotePlayers[id].userData.playerLight) remotePlayers[id].userData.playerLight.intensity = network.flashlightOn ? 2.4 : 0;
+                if (remotePlayers[id].userData.ambientGlow) remotePlayers[id].userData.ambientGlow.intensity = network.ambientLightOn ? 0.35 : 0;
                 return;
             }
-            const model = createMinecraftModel(info.color || 0xdcb85c);
+            const model = createMinecraftModel(info.color || 0xdcb85c, info.modelType || 'researcher');
             model.position.set(info.pos.x || 0, info.pos.y || 0, info.pos.z || 0);
             model.rotation.y = Number.isFinite(info.rotY) ? info.rotY : 0;
             model.userData.network = {
                 target: model.position.clone(),
                 targetYaw: model.rotation.y,
-                nickname: info.nickname || "Researcher"
+                nickname: info.nickname || "Researcher",
+                flashlightOn: !!info.flashlightOn,
+                ambientLightOn: !!info.ambientLightOn
             };
+            model.userData.playerLight.intensity = info.flashlightOn ? 2.4 : 0;
+            model.userData.ambientGlow.intensity = info.ambientLightOn ? 0.35 : 0;
             scene.add(model);
             remotePlayers[id] = model;
             cachedPlayerStates[id] = { pos: model.position.clone(), nickname: info.nickname || "Researcher" };
@@ -471,10 +505,23 @@
                         network.target.set(data.pos.x, data.pos.y, data.pos.z);
                         network.targetYaw = Number.isFinite(data.rotY) ? data.rotY : network.targetYaw;
                         network.nickname = data.nickname || network.nickname;
+                        if (typeof data.flashlightOn === 'boolean') network.flashlightOn = data.flashlightOn;
+                        if (remotePlayers[data.id].userData.playerLight) remotePlayers[data.id].userData.playerLight.intensity = network.flashlightOn ? 2.4 : 0;
                     }
                 } 
                 cachedPlayerStates[data.id] = { pos: new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), nickname: data.nickname || "Researcher" };
             });
+
+            socket.on('playerLightState', (data) => {
+                const remote = data && remotePlayers[data.id];
+                if (!remote) return;
+                remote.userData.network.flashlightOn = data.flashlightOn === true;
+                remote.userData.network.ambientLightOn = data.ambientLightOn === true;
+                remote.userData.playerLight.intensity = remote.userData.network.flashlightOn ? 2.4 : 0;
+                remote.userData.ambientGlow.intensity = remote.userData.network.ambientLightOn ? 0.35 : 0;
+            });
+
+            socket.on('chatMessage', (message) => showChatMessage(message));
 
             socket.on("updatePlayerList", (players) => {
                 const container = document.getElementById('pause-player-list');
@@ -511,6 +558,48 @@
                     fluorescentLights.forEach(l => { l.intensity = state ? 1.2 : 0; });
                     if (++count > 10) { clearInterval(interval); isFlickering = false; }
                 }, 75);
+            });
+        }
+
+        function showChatMessage(message) {
+            if (!message || !message.text) return;
+            const line = document.createElement('div');
+            line.className = 'chat-line';
+            line.innerText = `${message.nickname || 'Researcher'}: ${message.text}`;
+            document.getElementById('chat-feed').appendChild(line);
+            while (document.getElementById('chat-feed').children.length > 5) document.getElementById('chat-feed').firstChild.remove();
+            if (message.id && remotePlayers[message.id]) {
+                const bubble = document.createElement('div');
+                bubble.className = 'world-chat-bubble';
+                bubble.innerText = message.text;
+                document.body.appendChild(bubble);
+                chatBubbles[message.id] = { element: bubble, expires: performance.now() + 5000 };
+            }
+        }
+
+        function openChat() {
+            const form = document.getElementById('chat-form');
+            const input = document.getElementById('chat-input');
+            form.classList.add('open');
+            input.focus();
+        }
+
+        function setupChat() {
+            if (chatReady) return;
+            chatReady = true;
+            const form = document.getElementById('chat-form');
+            const input = document.getElementById('chat-input');
+            document.getElementById('chat-toggle').addEventListener('click', openChat);
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const text = input.value.trim();
+                if (text && socket && socket.connected) socket.emit('chatMessage', text);
+                input.value = '';
+                form.classList.remove('open');
+            });
+            window.addEventListener('keydown', (event) => {
+                if (event.key === '/' && document.activeElement !== input) { event.preventDefault(); openChat(); }
+                if (event.key === 'Escape' && document.activeElement === input) { input.blur(); form.classList.remove('open'); }
             });
         }
 
@@ -706,7 +795,7 @@
             prevTime = performance.now();
             requestPointerLock();
         }
-        function toggleFlashlight() { playClickSound(); flashlightOn = !flashlightOn; flashlight.intensity = flashlightOn ? 3.5 : 0; document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF"); }
+        function toggleFlashlight() { playClickSound(); flashlightOn = !flashlightOn; flashlight.intensity = flashlightOn ? 3.5 : 0; document.getElementById('btn-flashlight').innerText = "FLASHLIGHT: " + (flashlightOn ? "ON" : "OFF"); if (socket && socket.connected) socket.emit('playerLightState', { flashlightOn, ambientLightOn: flashlightOn }); }
         function handleJumpInput() { if (player.isGrounded || adminFlyMode) { player.velocityY = JUMP_FORCE; player.isGrounded = false; } }
 
         function init() {
@@ -947,7 +1036,7 @@
 
                 if (socket && socket.connected && time - lastMovementSentAt >= 50) {
                     lastMovementSentAt = time;
-                    socket.emit("playerMovement", { pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z }, rotY: player.yaw });
+                    socket.emit("playerMovement", { pos: { x: player.pos.x, y: player.pos.y - DEFAULT_EYE_HEIGHT, z: player.pos.z }, rotY: player.yaw, flashlightOn, ambientLightOn: flashlightOn });
                 }
             }
 
@@ -963,6 +1052,18 @@
                 if (cachedPlayerStates[id]) cachedPlayerStates[id].pos.copy(remotePlayers[id].position);
             });
             if (camera) updateProximityAudio();
+            Object.keys(chatBubbles).forEach(id => {
+                const bubble = chatBubbles[id];
+                const remote = remotePlayers[id];
+                if (!bubble || !remote || time > bubble.expires) {
+                    if (bubble && bubble.element) bubble.element.remove();
+                    delete chatBubbles[id];
+                    return;
+                }
+                const projected = remote.position.clone(); projected.y += 2.2; projected.project(camera);
+                bubble.element.style.left = `${(projected.x * 0.5 + 0.5) * window.innerWidth}px`;
+                bubble.element.style.top = `${(-projected.y * 0.5 + 0.5) * window.innerHeight}px`;
+            });
             if (!isFlickering) {
                 if (alarmActive) {
                     let flash = Math.sin(time * 0.007) > 0;

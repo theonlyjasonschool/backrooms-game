@@ -92,7 +92,7 @@
     if (monsterState.model || !scene) return;
     const model = createMinecraftModel(0x17151a);
     model.scale.set(1.2, 1.65, 1.2);
-    model.position.copy(cellToWorld(2, 2));
+    model.position.copy(cellToWorld(24, 24));
     model.userData.animation.phase = 0;
 
     const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xff2038 });
@@ -111,7 +111,7 @@
     monsterState.model = model;
     monsterState.vision = vision;
     monsterState.eyeLight = eyeLight;
-    monsterState.waypoints = [[2, 2], [6, 2], [10, 3], [14, 3], [18, 6], [22, 8], [24, 12], [20, 16], [16, 20], [10, 22], [6, 18], [3, 14]]
+    monsterState.waypoints = [[24, 24], [22, 20], [18, 22], [14, 24], [10, 22], [6, 18], [3, 14], [6, 10], [10, 6], [16, 8], [22, 12]]
       .filter(([x, z]) => isWalkable(x, z)).map(([x, z]) => cellToWorld(x, z));
     scene.add(model);
   }
@@ -164,7 +164,7 @@
         monsterState.pathIndex = 0;
         monsterState.repathAt = time + 600;
       }
-    } else if (monsterState.mode === 'survive' || monsterState.mode === 'patrol') {
+    } else if (monsterState.mode === 'survive' || monsterState.mode === 'patrol' || monsterState.mode === 'escape' || monsterState.mode === 'blackout') {
       if (!monsterState.waypoints.length) return;
       if (time >= monsterState.repathAt || monsterState.pathIndex >= monsterState.path.length) {
         const waypoint = monsterState.waypoints[monsterState.waypointIndex % monsterState.waypoints.length];
@@ -233,14 +233,8 @@
     monsterState.repathAt = 0;
   }
 
-  function syncLightState() {
-    if (!isAdmin || !socket) return;
-    socket.emit('admin-sync-lights', { blackout: blackoutActive, alarm: alarmActive });
-  }
-
   window.setMinigameMode = setMinigameMode;
   window.stopMinigame = stopMinigame;
-  window.syncLightState = syncLightState;
   window.__monsterState = monsterState;
 
   const oldInit = window.init;
@@ -257,10 +251,6 @@
       oldSocketInit();
       if (socket) {
         socket.on('sync-minigame-state', applyMinigameState);
-        socket.on('sync-lights', (state) => {
-          blackoutActive = !!state.blackout;
-          alarmActive = !!state.alarm;
-        });
       }
     };
   }
