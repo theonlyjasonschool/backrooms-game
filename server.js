@@ -97,6 +97,19 @@ io.on('connection', (socket) => {
     socket.on('admin-toggle-alarm', (state) => { io.emit('sync-alarm', state); });
     socket.on('admin-toggle-blackout', (state) => { io.emit('sync-blackout', state); });
     socket.on('admin-trigger-flicker', () => { io.emit('sync-flicker'); });
+    socket.on('admin-minigame-state', (state) => {
+        if (!state || typeof state.mode !== 'string') return;
+        io.emit('sync-minigame-state', {
+            mode: ['hunt', 'survive', 'patrol', 'stopped'].includes(state.mode) ? state.mode : 'stopped',
+            running: state.running === true
+        });
+    });
+    socket.on('admin-sync-lights', (state) => {
+        io.emit('sync-lights', {
+            blackout: !!(state && state.blackout),
+            alarm: !!(state && state.alarm)
+        });
+    });
 
     socket.on('disconnect', () => {
         console.log(`User decoupled from matrix zone: ${socket.id}`);

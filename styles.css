@@ -79,17 +79,47 @@ body {
   cursor: pointer;
 }
 
-#item-counter {
-  background: rgba(18, 18, 14, 0.7);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-  min-width: 150px;
+#btn-flashlight, #btn-alarm, #btn-flicker, #btn-blackout, #btn-sprint-toggle, .ui-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+#monster-status-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 95;
+  background: radial-gradient(circle, rgba(76, 8, 15, 0.5), rgba(0, 0, 0, 0.9));
+}
+
+#monster-status-overlay.visible { display: flex; }
+
+#monster-status-overlay > div {
+  width: min(440px, 84vw);
+  padding: 30px;
+  border: 2px solid #ff3d4f;
+  border-radius: 10px;
+  background: rgba(19, 8, 10, 0.96);
+  box-shadow: 0 0 35px rgba(255, 30, 50, 0.24);
   text-align: center;
 }
 
-#btn-flashlight, #btn-alarm, #btn-flicker, #btn-blackout, #btn-sprint-toggle, .ui-btn {
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+#monster-status-overlay h2 {
+  margin: 0 0 12px;
+  color: #ff5260;
+  letter-spacing: 0.16em;
+}
+
+#monster-status-overlay p { margin: 0 0 20px; line-height: 1.5; }
+
+#monster-status-overlay button {
+  padding: 11px 24px;
+  border: 2px solid #ff5260;
+  background: rgba(255, 50, 70, 0.12);
+  color: #ffe6e6;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 #btn-flashlight:hover, #btn-alarm:hover, #btn-flicker:hover, #btn-blackout:hover, #btn-sprint-toggle:hover, .ui-btn:hover {

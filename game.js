@@ -1,224 +1,277 @@
 (function () {
-  const state = {
-    ready: false,
-    door: null,
-    enemy: null,
-    batteryObjects: [],
-    collected: 0,
-    total: 0,
-    overlay: null,
-    objective: null,
-    gameEnded: false,
-    lastMessage: ''
+  const monsterState = {
+    model: null,
+    vision: null,
+    eyeLight: null,
+    waypoints: [],
+    waypointIndex: 0,
+    path: [],
+    pathIndex: 0,
+    repathAt: 0,
+    mode: 'stopped',
+    running: false,
+    gameOver: false,
+    lastTime: performance.now()
   };
 
-  function ensureHud() {
-    if (document.getElementById('game-objective')) return;
-    const objective = document.createElement('div');
-    objective.id = 'game-objective';
-    objective.textContent = 'Objective: gather power cells';
-    document.body.appendChild(objective);
-    state.objective = objective;
-
-    if (!document.getElementById('game-status-overlay')) {
-      const overlay = document.createElement('div');
-      overlay.id = 'game-status-overlay';
-      overlay.innerHTML = `
-        <div id="game-status-card">
-          <h2 id="game-status-title">System Status</h2>
-          <p id="game-status-text">Power cells required.</p>
-          <button id="game-status-button">Continue</button>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      state.overlay = overlay;
-      document.getElementById('game-status-button').addEventListener('click', () => {
-        state.overlay.classList.remove('visible');
-        if (!state.gameEnded) {
-          if (document.pointerLockElement !== renderer.domElement) {
-            requestPointerLock();
-          }
-        }
-      });
-    }
+  function cellToWorld(x, z, y = 0.15) {
+    return new THREE.Vector3(x * UNIT_SIZE, y, z * UNIT_SIZE);
   }
 
-  function setStatus(title, message, buttonText = 'Continue') {
-    ensureHud();
-    const titleEl = document.getElementById('game-status-title');
-    const textEl = document.getElementById('game-status-text');
-    const buttonEl = document.getElementById('game-status-button');
-    if (titleEl) titleEl.textContent = title;
-    if (textEl) textEl.textContent = message;
-    if (buttonEl) buttonEl.textContent = buttonText;
-    state.overlay.classList.add('visible');
-  }
-
-  function refreshObjective() {
-    if (!state.objective) return;
-    const remaining = Math.max(0, state.total - state.collected);
-    if (remaining > 0) {
-      state.objective.textContent = `Objective: gather power cells (${state.collected}/${state.total})`;
-    } else {
-      state.objective.textContent = 'Objective: reach the exit door';
-    }
-  }
-
-  function createExitDoor() {
-    if (!scene || state.door) return;
-    const doorMaterial = new THREE.MeshStandardMaterial({
-      color: 0xc7c1a2,
-      emissive: 0x2a2a2a,
-      metalness: 0.14,
-      roughness: 0.72
-    });
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.8, 0.25), doorMaterial);
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.5, 0.08), new THREE.MeshStandardMaterial({
-      color: 0x7d9aa7,
-      emissive: 0x3f5b7c,
-      emissiveIntensity: 0.8
-    }));
-    eye.position.z = 0.14;
-
-    const group = new THREE.Group();
-    group.add(frame);
-    group.add(eye);
-    group.position.set(24 * UNIT_SIZE, 1.4, 24 * UNIT_SIZE);
-    group.rotation.y = Math.PI / 2;
-    scene.add(group);
-    state.door = group;
-  }
-
-  function setupEnemy() {
-    if (!scene || state.enemy) return;
-    const enemy = createMinecraftModel(0x1a1a1a);
-    enemy.scale.set(1.1, 1.5, 1.1);
-    enemy.position.set(3 * UNIT_SIZE, 0.1, 3 * UNIT_SIZE);
-    scene.add(enemy);
-    state.enemy = enemy;
-  }
-
-  function setupGameSystems() {
-    if (state.ready) return;
-    state.ready = true;
-    ensureHud();
-    createExitDoor();
-    setupEnemy();
-    state.total = collectibleItems.length || 0;
-    state.batteryObjects = collectibleItems || [];
-    refreshObjective();
-  }
-
-  function updateBatteryCollection() {
-    if (!state.ready || !collectibleItems) return;
-    let collectedThisFrame = 0;
-    collectibleItems.forEach((item) => {
-      if (!item || item.userData.collected) return;
-      item.rotation.y += 0.04;
-      item.position.y = item.userData.baseY + Math.sin(performance.now() * 0.003 + item.id) * 0.08;
-      if (player && player.pos.distanceTo(item.position) < 1.4) {
-        item.userData.collected = true;
-        item.visible = false;
-        collectedThisFrame++;
-      }
-    });
-
-    if (collectedThisFrame > 0) {
-      state.collected = collectibleItems.filter((item) => item && item.userData.collected).length;
-      collectedItemCount = state.collected;
-      document.getElementById('item-counter').innerText = `BATTERIES: ${state.collected}/${state.total}`;
-      refreshObjective();
-
-      if (state.collected >= state.total) {
-        if (state.door) {
-          const glass = state.door.children[1];
-          if (glass && glass.material && glass.material.emissive) {
-            glass.material.emissive.setHex(0x2aeaa0);
-            glass.material.emissiveIntensity = 1.8;
-          }
-        }
-        state.lastMessage = 'The exit is open. Reach the door.';
-      }
-    }
-  }
-
-  function updateEnemy(dt) {
-    if (!state.enemy || !player || state.gameEnded) return;
-
-    const enemy = state.enemy;
-    const target = player.pos.clone();
-    const current = enemy.position.clone();
-
-    if (state.collected < state.total) {
-      const driftX = 13 + Math.sin(performance.now() * 0.0007) * 7;
-      const driftZ = 13 + Math.cos(performance.now() * 0.0008) * 8;
-      const wanderTarget = new THREE.Vector3(driftX * UNIT_SIZE, 0.2, driftZ * UNIT_SIZE);
-      const dir = wanderTarget.sub(current);
-      dir.y = 0;
-      if (dir.lengthSq() > 0.05) {
-        dir.normalize();
-        enemy.position.addScaledVector(dir, dt * 2.2);
-      }
-    } else {
-      const dir = target.clone().sub(current);
-      dir.y = 0;
-      if (dir.lengthSq() > 0.01) {
-        dir.normalize();
-        enemy.position.addScaledVector(dir, dt * 3.7);
-      }
-      if (player.pos.distanceTo(enemy.position) < 1.6) {
-        state.gameEnded = true;
-        setStatus('You were found', 'The backrooms closed around you. Try again and keep moving in the dark.', 'Retry');
-        isPaused = true;
-        gameActive = false;
-      }
-    }
-
-    const lookTarget = new THREE.Vector3(player.pos.x, 0.8, player.pos.z);
-    enemy.lookAt(lookTarget);
-  }
-
-  function checkExitDoor() {
-    if (!state.door || state.collected < state.total || state.gameEnded) return;
-    const doorPos = state.door.position.clone();
-    const distance = player.pos.distanceTo(doorPos);
-    if (distance < 2.0) {
-      state.gameEnded = true;
-      setStatus('You escaped', 'You found the exit and survived the maze long enough to leave it behind.', 'Play Again');
-      isPaused = true;
-      gameActive = false;
-    }
-  }
-
-  function runEngineUpdate() {
-    if (!scene || !gameActive || isPaused) return;
-    if (!state.ready) setupGameSystems();
-    if (state.ready) {
-      updateBatteryCollection();
-      updateEnemy(1 / 60);
-      checkExitDoor();
-    }
-  }
-
-  const oldAnimate = window.animate;
-  if (typeof oldAnimate === 'function') {
-    window.animate = function () {
-      oldAnimate();
-      runEngineUpdate();
+  function worldToCell(position) {
+    return {
+      x: Math.floor((position.x + UNIT_SIZE / 2) / UNIT_SIZE),
+      z: Math.floor((position.z + UNIT_SIZE / 2) / UNIT_SIZE)
     };
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    ensureHud();
-    const statusButton = document.getElementById('game-status-button');
-    if (statusButton) {
-      statusButton.addEventListener('click', () => {
-        if (state.gameEnded) {
-          window.location.reload();
+  function isWalkable(x, z) {
+    return z >= 0 && z < map.length && x >= 0 && x < map[z].length && map[z][x] === 0;
+  }
+
+  function canMonsterOccupy(position) {
+    const radius = 0.65;
+    const offsets = [[-radius, -radius], [radius, -radius], [-radius, radius], [radius, radius]];
+    return offsets.every(([x, z]) => isWalkable(...Object.values(worldToCell({ x: position.x + x, z: position.z + z }))));
+  }
+
+  function hasLineOfSight(from, to) {
+    const distance = from.distanceTo(to);
+    const steps = Math.ceil(distance / (UNIT_SIZE * 0.25));
+    for (let step = 1; step < steps; step++) {
+      const point = from.clone().lerp(to, step / steps);
+      const cell = worldToCell(point);
+      if (!isWalkable(cell.x, cell.z)) return false;
+    }
+    return true;
+  }
+
+  function findPath(start, goal) {
+    const startCell = worldToCell(start);
+    const goalCell = worldToCell(goal);
+    if (!isWalkable(startCell.x, startCell.z) || !isWalkable(goalCell.x, goalCell.z)) return [];
+    const queue = [startCell];
+    const cameFrom = new Map();
+    const key = (cell) => `${cell.x},${cell.z}`;
+    cameFrom.set(key(startCell), null);
+    const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    while (queue.length) {
+      const current = queue.shift();
+      if (current.x === goalCell.x && current.z === goalCell.z) break;
+      directions.forEach(([dx, dz]) => {
+        const next = { x: current.x + dx, z: current.z + dz };
+        const nextKey = key(next);
+        if (isWalkable(next.x, next.z) && !cameFrom.has(nextKey)) {
+          cameFrom.set(nextKey, current);
+          queue.push(next);
         }
       });
     }
-  });
 
-  window.__backroomsGame = state;
+    const path = [];
+    let cursor = goalCell;
+    while (cursor && cameFrom.has(key(cursor))) {
+      path.unshift(cellToWorld(cursor.x, cursor.z));
+      cursor = cameFrom.get(key(cursor));
+    }
+    return path;
+  }
+
+  function createVisionCone() {
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(2.1, 5.5, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xff2638, transparent: true, opacity: 0.11, depthWrite: false, side: THREE.DoubleSide })
+    );
+    cone.rotation.x = -Math.PI / 2;
+    cone.position.set(0, 0.85, -2.2);
+    return cone;
+  }
+
+  function createMonster() {
+    if (monsterState.model || !scene) return;
+    const model = createMinecraftModel(0x17151a);
+    model.scale.set(1.2, 1.65, 1.2);
+    model.position.copy(cellToWorld(2, 2));
+    model.userData.animation.phase = 0;
+
+    const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xff2038 });
+    const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.03), eyeMaterial);
+    const rightEye = leftEye.clone();
+    leftEye.position.set(-0.09, 1.34, -0.205);
+    rightEye.position.set(0.09, 1.34, -0.205);
+    model.add(leftEye, rightEye);
+
+    const vision = createVisionCone();
+    model.add(vision);
+    const eyeLight = new THREE.PointLight(0xff1835, 0.7, 5);
+    eyeLight.position.set(0, 1.25, -0.35);
+    model.add(eyeLight);
+
+    monsterState.model = model;
+    monsterState.vision = vision;
+    monsterState.eyeLight = eyeLight;
+    monsterState.waypoints = [[2, 2], [6, 2], [10, 3], [14, 3], [18, 6], [22, 8], [24, 12], [20, 16], [16, 20], [10, 22], [6, 18], [3, 14]]
+      .filter(([x, z]) => isWalkable(x, z)).map(([x, z]) => cellToWorld(x, z));
+    scene.add(model);
+  }
+
+  function moveMonsterToward(target, speed, delta) {
+    const monster = monsterState.model;
+    const direction = target.clone().sub(monster.position);
+    direction.y = 0;
+    if (direction.lengthSq() < 0.05) return true;
+    direction.normalize();
+    monster.rotation.y = Math.atan2(-direction.x, -direction.z);
+    const step = direction.multiplyScalar(speed * delta);
+    const nextX = monster.position.clone();
+    nextX.x += step.x;
+    if (canMonsterOccupy(nextX)) monster.position.x = nextX.x;
+    const nextZ = monster.position.clone();
+    nextZ.z += step.z;
+    if (canMonsterOccupy(nextZ)) monster.position.z = nextZ.z;
+    return false;
+  }
+
+  function updateMonsterAnimation(delta, moving, time) {
+    const animation = monsterState.model.userData.animation;
+    if (!animation) return;
+    animation.phase += delta * (moving ? 8.5 : 1.5);
+    const swing = moving ? Math.sin(animation.phase) * 0.85 : Math.sin(animation.phase) * 0.08;
+    animation.leftArm.rotation.x = swing;
+    animation.rightArm.rotation.x = -swing;
+    animation.leftLeg.rotation.x = -swing * 0.7;
+    animation.rightLeg.rotation.x = swing * 0.7;
+    animation.leftArm.rotation.z = -0.12 + Math.sin(animation.phase * 0.5) * 0.08;
+    animation.rightArm.rotation.z = 0.12 - Math.sin(animation.phase * 0.5) * 0.08;
+    monsterState.model.position.y = 0.12 + Math.abs(Math.sin(animation.phase)) * (moving ? 0.05 : 0.015);
+    monsterState.vision.material.opacity = 0.08 + Math.abs(Math.sin(time * 0.004)) * 0.05;
+    monsterState.eyeLight.intensity = 0.55 + Math.abs(Math.sin(time * 0.006)) * 0.8;
+  }
+
+  function updateMonster(delta, time) {
+    if (!monsterState.model || !monsterState.running || monsterState.gameOver) return;
+    const monster = monsterState.model;
+    const playerTarget = new THREE.Vector3(player.pos.x, 0.9, player.pos.z);
+    const distance = monster.position.distanceTo(playerTarget);
+    const facing = new THREE.Vector3(0, 0, -1).applyQuaternion(monster.quaternion);
+    const toPlayer = playerTarget.clone().sub(monster.position).normalize();
+    const seesPlayer = distance < UNIT_SIZE * 7 && facing.dot(toPlayer) > 0.2 && hasLineOfSight(monster.position, playerTarget);
+
+    if (monsterState.mode === 'hunt' || seesPlayer) {
+      if (time >= monsterState.repathAt) {
+        monsterState.path = findPath(monster.position, player.pos);
+        monsterState.pathIndex = 0;
+        monsterState.repathAt = time + 600;
+      }
+    } else if (monsterState.mode === 'survive' || monsterState.mode === 'patrol') {
+      if (!monsterState.waypoints.length) return;
+      if (time >= monsterState.repathAt || monsterState.pathIndex >= monsterState.path.length) {
+        const waypoint = monsterState.waypoints[monsterState.waypointIndex % monsterState.waypoints.length];
+        monsterState.path = findPath(monster.position, waypoint);
+        monsterState.pathIndex = 0;
+        monsterState.repathAt = time + 1000;
+        if (!monsterState.path.length || monsterState.pathIndex >= monsterState.path.length) monsterState.waypointIndex++;
+      }
+    } else {
+      updateMonsterAnimation(delta, false, time);
+      return;
+    }
+
+    const nextPoint = monsterState.path[monsterState.pathIndex];
+    if (nextPoint) {
+      const arrived = moveMonsterToward(nextPoint, seesPlayer ? 4.2 : 2.0, delta);
+      if (arrived) monsterState.pathIndex++;
+    }
+    updateMonsterAnimation(delta, true, time);
+
+    if (distance < 1.7) {
+      monsterState.gameOver = true;
+      isPaused = true;
+      gameActive = false;
+      showMonsterStatus('CAUGHT', 'The watcher found you in the maze.', 'RESTART');
+    }
+  }
+
+  function showMonsterStatus(title, text, buttonText) {
+    let overlay = document.getElementById('monster-status-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'monster-status-overlay';
+      overlay.innerHTML = '<div><h2></h2><p></p><button></button></div>';
+      document.body.appendChild(overlay);
+    }
+    overlay.querySelector('h2').textContent = title;
+    overlay.querySelector('p').textContent = text;
+    const button = overlay.querySelector('button');
+    button.textContent = buttonText;
+    button.onclick = () => window.location.reload();
+    overlay.classList.add('visible');
+  }
+
+  function setMinigameMode(mode) {
+    if (!isAdmin) return;
+    monsterState.mode = mode;
+    monsterState.running = true;
+    monsterState.gameOver = false;
+    monsterState.repathAt = 0;
+    if (socket) socket.emit('admin-minigame-state', { mode, running: true });
+  }
+
+  function stopMinigame() {
+    if (!isAdmin) return;
+    monsterState.running = false;
+    monsterState.mode = 'stopped';
+    monsterState.path = [];
+    if (socket) socket.emit('admin-minigame-state', { mode: 'stopped', running: false });
+  }
+
+  function applyMinigameState(state) {
+    monsterState.mode = state && state.mode ? state.mode : 'stopped';
+    monsterState.running = !!(state && state.running);
+    monsterState.gameOver = false;
+    monsterState.repathAt = 0;
+  }
+
+  function syncLightState() {
+    if (!isAdmin || !socket) return;
+    socket.emit('admin-sync-lights', { blackout: blackoutActive, alarm: alarmActive });
+  }
+
+  window.setMinigameMode = setMinigameMode;
+  window.stopMinigame = stopMinigame;
+  window.syncLightState = syncLightState;
+  window.__monsterState = monsterState;
+
+  const oldInit = window.init;
+  if (typeof oldInit === 'function') {
+    window.init = function () {
+      oldInit();
+      createMonster();
+    };
+  }
+
+  const oldSocketInit = window.initMultiplayer;
+  if (typeof oldSocketInit === 'function') {
+    window.initMultiplayer = function () {
+      oldSocketInit();
+      if (socket) {
+        socket.on('sync-minigame-state', applyMinigameState);
+        socket.on('sync-lights', (state) => {
+          blackoutActive = !!state.blackout;
+          alarmActive = !!state.alarm;
+        });
+      }
+    };
+  }
+
+  function frame() {
+    const now = performance.now();
+    const delta = Math.min((now - monsterState.lastTime) / 1000, 0.08);
+    monsterState.lastTime = now;
+    if (scene && !monsterState.model) createMonster();
+    updateMonster(delta, now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();

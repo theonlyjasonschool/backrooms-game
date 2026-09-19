@@ -122,6 +122,8 @@
         .cc-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #22aa22; padding-bottom: 4px; }
         #cc-cam-view { width: 100%; height: 220px; background: #000; position: relative; border: 1px solid #22aa22; }
         .cc-cam-overlay { position: absolute; top: 5px; left: 5px; font-size: 0.75rem; color: #55ff55; text-shadow: 1px 1px 2px #000; z-index: 10; }
+        .cc-admin-controls { display: none; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+        .cc-admin-controls .admin-action-btn { margin: 0; padding: 6px; font-size: 0.7rem; }
 
         #vhs-screen-effects { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
     </style>
@@ -145,7 +147,6 @@
 
     <div id="mobile-hud-actions">
         <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
-        <div id="item-counter" style="color:#eedc82; font-weight:bold; text-shadow:0 1px 3px #000;">BATTERIES: 0/0</div>
     </div>
 
     <div id="instructions" class="menu-overlay">
@@ -189,6 +190,10 @@
                 </div>
                 <button class="admin-action-btn" style="border-color: #ff4444; color: #ff8888;" onclick="triggerAdminKill()">KILL YOURSELF</button>
                 <button class="admin-action-btn" style="border-color: #ffaa00; color: #ffcc66;" onclick="triggerAdminExplode()">EXPLODE ZONE</button>
+                <button class="admin-action-btn" onclick="setMinigameMode('hunt')">MINIGAME: HUNT</button>
+                <button class="admin-action-btn" onclick="setMinigameMode('survive')">MINIGAME: SURVIVE</button>
+                <button class="admin-action-btn" style="border-color:#ff4444; color:#ff8888;" onclick="stopMinigame()">STOP MINIGAME</button>
+                <button class="admin-action-btn" onclick="syncLightState()">SYNC LIGHTS</button>
             </div>
         </div>
         <button class="ui-btn" style="margin-top:15px; width:100%; max-width:200px;" onclick="resumeGame()">RESUME</button>
@@ -210,6 +215,12 @@
                     <div class="cc-cam-overlay" id="cc-cam-label">CAM_01 - NORTH SECTOR</div>
                 </div>
                 <button class="ui-btn" style="margin-top:8px; width:100%; padding:6px;" onclick="cycleCCCamera()">CYCLE CAMERA</button>
+                <div class="cc-admin-controls" id="cc-admin-controls">
+                    <button class="admin-action-btn" onclick="setMinigameMode('hunt')">START HUNT</button>
+                    <button class="admin-action-btn" onclick="setMinigameMode('patrol')">START PATROL</button>
+                    <button class="admin-action-btn" onclick="stopMinigame()">STOP MINIGAME</button>
+                    <button class="admin-action-btn" onclick="syncLightState()">SYNC LIGHTS</button>
+                </div>
             </div>
             <button class="ui-btn" style="margin-top:15px; border-color:#ff4444; color:#ff8888;" onclick="exitCommandCentre()">DISCONNECT CC</button>
         </div>
@@ -268,7 +279,7 @@
         map[26][26] = 0;
         
         const UNIT_SIZE = 4, WALL_HEIGHT = 3.5;
-        let fluorescentLights = [], ambientLight, collectibleItems = [], collectedItemCount = 0;
+        let fluorescentLights = [], ambientLight;
         let flashlight, flashlightOn = false, alarmActive = false, blackoutActive = false; 
 
         let ccCamera, ccCamIndex = 0;
@@ -396,21 +407,6 @@
             return group;
         }
 
-        function createCollectibleItems() {
-            const itemCells = [[3, 3], [7, 2], [11, 4], [15, 2], [19, 4], [23, 2], [25, 6], [5, 8], [13, 8], [21, 9], [3, 13], [9, 13], [17, 13], [25, 14], [5, 18], [13, 18], [21, 19], [3, 23], [11, 23], [19, 24], [25, 25]];
-            const itemMaterial = new THREE.MeshStandardMaterial({ color: 0xffd84d, emissive: 0x8a5b00, emissiveIntensity: 1.5 });
-            itemCells.forEach(([x, z], index) => {
-                if (map[z][x] === 1) return;
-                const item = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.65), itemMaterial.clone());
-                item.position.set(x * UNIT_SIZE, 0.28, z * UNIT_SIZE);
-                item.rotation.y = index * 0.7;
-                item.userData.baseY = item.position.y;
-                scene.add(item);
-                collectibleItems.push(item);
-            });
-            document.getElementById('item-counter').innerText = `BATTERIES: 0/${collectibleItems.length}`;
-        }
-
         function updatePlayerAnimation(model, moving, delta, time) {
             const animation = model.userData.animation;
             if (!animation) return;
@@ -421,20 +417,6 @@
             animation.leftLeg.rotation.x = -swing * 0.8;
             animation.rightLeg.rotation.x = swing * 0.8;
             model.position.y += Math.sin(time * (moving ? 0.012 : 0.002)) * (moving ? 0.008 : 0.002);
-        }
-
-        function updateCollectibleItems(time) {
-            collectibleItems.forEach(item => {
-                if (item.userData.collected) return;
-                item.rotation.y += 0.02;
-                item.position.y = item.userData.baseY + Math.sin(time * 0.003 + item.id) * 0.08;
-                if (player.pos.distanceTo(item.position) < 1.2) {
-                    item.userData.collected = true;
-                    item.visible = false;
-                    collectedItemCount++;
-                    document.getElementById('item-counter').innerText = `BATTERIES: ${collectedItemCount}/${collectibleItems.length}`;
-                }
-            });
         }
 
         function spawnRemotePlayer(id, info) {
@@ -678,6 +660,7 @@
                 
                 // FORCE OVERRIDE DISPLAY PROPERTY FOR RIGID PAUSE SCREEN LAYOUT
                 document.getElementById('admin-rights-panel').style.setProperty('display', 'flex', 'important');
+                document.getElementById('cc-admin-controls').style.display = 'grid';
             } else {
                 alert("INVALID KEY!");
             }
@@ -794,7 +777,6 @@
                     }
                 }
             }
-            createCollectibleItems();
             startLightSounds();
 
             if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; activateResponsiveUI(); }
@@ -981,8 +963,6 @@
                 if (cachedPlayerStates[id]) cachedPlayerStates[id].pos.copy(remotePlayers[id].position);
             });
             if (camera) updateProximityAudio();
-            if (gameActive && !isPaused) updateCollectibleItems(time);
-
             if (!isFlickering) {
                 if (alarmActive) {
                     let flash = Math.sin(time * 0.007) > 0;
