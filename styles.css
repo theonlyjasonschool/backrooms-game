@@ -1,0 +1,98 @@
+:root {
+  --paper: #f0e7d0;
+  --gold: #e8c76a;
+  --amber: #ffbf69;
+  --rust: #8b4b2f;
+  --dark: #11130f;
+  --panel: rgba(15, 15, 12, 0.8);
+  --line: rgba(232, 199, 106, 0.6);
+}
+
+body {
+  background: radial-gradient(circle at center, #171510 0%, #090909 40%, #000 100%);
+  color: var(--paper);
+}
+
+#game-objective {
+  position: absolute;
+  left: 20px;
+  top: 70px;
+  z-index: 80;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  color: var(--paper);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.4);
+}
+
+#game-status-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.68);
+  z-index: 90;
+}
+
+#game-status-overlay.visible {
+  display: flex;
+}
+
+#game-status-card {
+  width: min(460px, 80vw);
+  padding: 28px 24px;
+  text-align: center;
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(20, 16, 12, 0.95), rgba(15, 14, 11, 0.85));
+  box-shadow: 0 0 30px rgba(232, 199, 106, 0.15);
+}
+
+#game-status-card h2 {
+  margin: 0 0 12px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#game-status-card p {
+  margin: 0 0 18px;
+  color: #f2ead0;
+  line-height: 1.5;
+}
+
+#game-status-card button {
+  min-width: 180px;
+  padding: 12px 18px;
+  border: 2px solid var(--gold);
+  background: rgba(232, 199, 106, 0.12);
+  color: var(--paper);
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+#item-counter {
+  background: rgba(18, 18, 14, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: 150px;
+  text-align: center;
+}
+
+#btn-flashlight, #btn-alarm, #btn-flicker, #btn-blackout, #btn-sprint-toggle, .ui-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+#btn-flashlight:hover, #btn-alarm:hover, #btn-flicker:hover, #btn-blackout:hover, #btn-sprint-toggle:hover, .ui-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(232, 199, 106, 0.2);
+}

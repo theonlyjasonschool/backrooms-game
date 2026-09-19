@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>The Backrooms test</title>
+    <link rel="stylesheet" href="/styles.css">
     <style>
         * { box-sizing: border-box; }
         body, html {
@@ -144,6 +145,7 @@
 
     <div id="mobile-hud-actions">
         <button id="btn-mobile-jump" class="ui-btn" onclick="handleJumpInput()">JUMP</button>
+        <div id="item-counter" style="color:#eedc82; font-weight:bold; text-shadow:0 1px 3px #000;">BATTERIES: 0/0</div>
     </div>
 
     <div id="instructions" class="menu-overlay">
@@ -254,23 +256,19 @@
         let adminFlyMode = false;
         let adminSpeedMultiplier = 1.0;
 
-        const map = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1],
-            [1,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1],
-            [1,0,1,0,1,1,1,1,0,1,0,1,0,1,0,1],
-            [1,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1],
-            [1,1,1,0,1,0,1,1,0,1,1,1,1,1,0,1],
-            [1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,1],
-            [1,0,1,1,1,1,1,0,1,1,1,1,0,0,0,1],
-            [1,0,1,0,0,0,1,0,1,0,0,1,1,1,0,1],
-            [1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-        ];
+        const map = Array.from({ length: 28 }, (_, z) => Array.from({ length: 28 }, (_, x) => {
+            if (x === 0 || z === 0 || x === 27 || z === 27) return 1;
+            const verticalWall = x % 4 === 0 && z % 7 !== 3;
+            const horizontalWall = z % 5 === 0 && x % 6 !== 2;
+            return verticalWall || horizontalWall ? 1 : 0;
+        }));
+        map[1][1] = 0;
+        map[1][2] = 0;
+        map[2][1] = 0;
+        map[26][26] = 0;
         
         const UNIT_SIZE = 4, WALL_HEIGHT = 3.5;
-        let fluorescentLights = [], ambientLight;
+        let fluorescentLights = [], ambientLight, collectibleItems = [], collectedItemCount = 0;
         let flashlight, flashlightOn = false, alarmActive = false, blackoutActive = false; 
 
         let ccCamera, ccCamIndex = 0;
@@ -341,17 +339,12 @@
             });
         }
 
-        function createWallpaperTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#cbb879'; ctx.fillRect(0, 0, 256, 256); ctx.fillStyle = '#beab6c'; for (let i = 0; i < 256; i += 32) ctx.fillRect(i, 0, 4, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
-        function createCarpetTexture() { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#7a6b43'; ctx.fillRect(0, 0, 128, 128); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
-        function createCeilingTexture() { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#dfdcd0'; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = '#b5b2a5'; ctx.strokeRect(0, 0, 256, 256); const texture = new THREE.CanvasTexture(canvas); texture.wrapS = texture.wrapT = THREE.RepeatWrapping; return texture; }
-        function loadTextureWithFallback(url, fallbackFactory, onLoad) {
-            const fallback = fallbackFactory();
-            const loader = new THREE.TextureLoader();
-            loader.load(url, texture => {
-                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-                onLoad(texture);
-            }, undefined, () => console.warn(`Texture unavailable: ${url}; using generated fallback.`));
-            return fallback;
+        function loadTexture(url, repeatX = 1, repeatY = 1) {
+            const texture = new THREE.TextureLoader().load(url);
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(repeatX, repeatY);
+            if (texture.colorSpace) texture.colorSpace = THREE.SRGBColorSpace;
+            return texture;
         }
 
         function startGame() {
@@ -399,7 +392,49 @@
             const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.2), new THREE.MeshLambertMaterial({ color: 0xffdbac })); rightArm.position.set(0.28, 0.8, 0); group.add(rightArm);
             const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); leftLeg.position.set(-0.1, 0.25, 0); group.add(leftLeg);
             const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.2), new THREE.MeshLambertMaterial({ color: 0x333333 })); rightLeg.position.set(0.1, 0.25, 0); group.add(rightLeg);
+            group.userData.animation = { leftArm, rightArm, leftLeg, rightLeg, phase: Math.random() * Math.PI * 2 };
             return group;
+        }
+
+        function createCollectibleItems() {
+            const itemCells = [[3, 3], [7, 2], [11, 4], [15, 2], [19, 4], [23, 2], [25, 6], [5, 8], [13, 8], [21, 9], [3, 13], [9, 13], [17, 13], [25, 14], [5, 18], [13, 18], [21, 19], [3, 23], [11, 23], [19, 24], [25, 25]];
+            const itemMaterial = new THREE.MeshStandardMaterial({ color: 0xffd84d, emissive: 0x8a5b00, emissiveIntensity: 1.5 });
+            itemCells.forEach(([x, z], index) => {
+                if (map[z][x] === 1) return;
+                const item = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.18, 0.65), itemMaterial.clone());
+                item.position.set(x * UNIT_SIZE, 0.28, z * UNIT_SIZE);
+                item.rotation.y = index * 0.7;
+                item.userData.baseY = item.position.y;
+                scene.add(item);
+                collectibleItems.push(item);
+            });
+            document.getElementById('item-counter').innerText = `BATTERIES: 0/${collectibleItems.length}`;
+        }
+
+        function updatePlayerAnimation(model, moving, delta, time) {
+            const animation = model.userData.animation;
+            if (!animation) return;
+            animation.phase += delta * (moving ? 10 : 2);
+            const swing = moving ? Math.sin(animation.phase) * 0.55 : 0;
+            animation.leftArm.rotation.x = swing;
+            animation.rightArm.rotation.x = -swing;
+            animation.leftLeg.rotation.x = -swing * 0.8;
+            animation.rightLeg.rotation.x = swing * 0.8;
+            model.position.y += Math.sin(time * (moving ? 0.012 : 0.002)) * (moving ? 0.008 : 0.002);
+        }
+
+        function updateCollectibleItems(time) {
+            collectibleItems.forEach(item => {
+                if (item.userData.collected) return;
+                item.rotation.y += 0.02;
+                item.position.y = item.userData.baseY + Math.sin(time * 0.003 + item.id) * 0.08;
+                if (player.pos.distanceTo(item.position) < 1.2) {
+                    item.userData.collected = true;
+                    item.visible = false;
+                    collectedItemCount++;
+                    document.getElementById('item-counter').innerText = `BATTERIES: ${collectedItemCount}/${collectibleItems.length}`;
+                }
+            });
         }
 
         function spawnRemotePlayer(id, info) {
@@ -484,7 +519,7 @@
             socket.on("sync-blackout", (state) => {
                 blackoutActive = state; ambientLight.intensity = blackoutActive ? 0.05 : 0.8;
                 if(blackoutActive) fluorescentLights.forEach(light => light.intensity = 0);
-                else fluorescentLights.forEach(light => { light.intensity = 1.2; light.color.set('#fffde8'); });
+                else fluorescentLights.forEach(light => { light.intensity = light.userData.baseIntensity; light.color.set('#fffde8'); });
                 document.getElementById('btn-blackout').innerText = "BLACKOUT: " + (blackoutActive ? "ON" : "OFF");
             });
             socket.on("sync-flicker", () => {
@@ -717,7 +752,7 @@
             ccCamera = new THREE.PerspectiveCamera(65, 320 / 220, 0.1, 100); 
             ccCamera.position.copy(ccCamPositions[0].pos);
 
-            ambientLight = new THREE.AmbientLight('#4a452a', 0.8); scene.add(ambientLight);
+            ambientLight = new THREE.AmbientLight('#4a452a', 0.95); scene.add(ambientLight);
             
             flashlight = new THREE.SpotLight('#ffffff', 0, 15, Math.PI / 5, 0.5, 1); camera.add(flashlight);
             flashlight.position.set(0, 0, 0); flashlight.target = new THREE.Object3D(); camera.add(flashlight.target); flashlight.target.position.set(0, 0, -1);
@@ -725,9 +760,13 @@
             audioListener = new THREE.AudioListener();
             camera.add(audioListener);
 
-            const wallMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/wallpaper1.jpg', createWallpaperTexture, texture => { wallMat.map = texture; wallMat.needsUpdate = true; }) });
-            const floorMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/carpet1.jpg', createCarpetTexture, texture => { floorMat.map = texture; floorMat.needsUpdate = true; }) });
-            const ceilingMat = new THREE.MeshLambertMaterial({ map: loadTextureWithFallback('/assets/ceiling1.jpg', createCeilingTexture, texture => { ceilingMat.map = texture; ceilingMat.needsUpdate = true; }) });
+            const wallTexture = loadTexture('/assets/wallpaper1.jpg', 2, 2);
+            const floorTexture = loadTexture('/assets/carpet1.jpg', 2, 2);
+            const ceilingTexture = loadTexture('/assets/ceiling1.jpg', 2, 2);
+
+            const wallMat = new THREE.MeshLambertMaterial({ map: wallTexture });
+            const floorMat = new THREE.MeshLambertMaterial({ map: floorTexture });
+            const ceilingMat = new THREE.MeshLambertMaterial({ map: ceilingTexture });
 
             for (let z = 0; z < map.length; z++) {
                 for (let x = 0; x < map[z].length; x++) {
@@ -737,7 +776,10 @@
                         const floor = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), floorMat); floor.rotation.x = -Math.PI / 2; floor.position.set(x * UNIT_SIZE, 0, z * UNIT_SIZE); scene.add(floor);
                         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(UNIT_SIZE, UNIT_SIZE), ceilingMat); ceiling.rotation.x = Math.PI / 2; ceiling.position.set(x * UNIT_SIZE, WALL_HEIGHT, z * UNIT_SIZE); scene.add(ceiling);
                         if ((x % 3 === 0) && (z % 3 === 0)) {
-                            let light = new THREE.PointLight('#fffde8', 1.2, 12, 1.2);
+                            let light = new THREE.PointLight('#fffde8', 1.8, 18, 1.1);
+                            light.userData.baseIntensity = 1.8;
+                            light.userData.nextFlicker = performance.now() + 800 + Math.random() * 5000;
+                            light.userData.flickerUntil = 0;
                             light.position.set(x * UNIT_SIZE, WALL_HEIGHT - 0.3, z * UNIT_SIZE);
                             const fixture = new THREE.Mesh(
                                 new THREE.BoxGeometry(1.6, 0.12, 0.55),
@@ -752,6 +794,7 @@
                     }
                 }
             }
+            createCollectibleItems();
             startLightSounds();
 
             if (isMobile) { document.getElementById('btn-mobile-jump').style.display = 'flex'; activateResponsiveUI(); }
@@ -929,20 +972,31 @@
             Object.keys(remotePlayers).forEach(id => {
                 const network = remotePlayers[id].userData.network;
                 if (!network) return;
+                const previousPosition = remotePlayers[id].position.clone();
                 remotePlayers[id].position.lerp(network.target, 1 - Math.exp(-12 * delta));
                 let yawDelta = network.targetYaw - remotePlayers[id].rotation.y;
                 yawDelta = Math.atan2(Math.sin(yawDelta), Math.cos(yawDelta));
                 remotePlayers[id].rotation.y += yawDelta * (1 - Math.exp(-12 * delta));
+                updatePlayerAnimation(remotePlayers[id], previousPosition.distanceTo(remotePlayers[id].position) > 0.001, delta, time);
                 if (cachedPlayerStates[id]) cachedPlayerStates[id].pos.copy(remotePlayers[id].position);
             });
             if (camera) updateProximityAudio();
+            if (gameActive && !isPaused) updateCollectibleItems(time);
 
             if (!isFlickering) {
                 if (alarmActive) {
                     let flash = Math.sin(time * 0.007) > 0;
                     fluorescentLights.forEach(l => { l.intensity = flash ? 1.5 : 0.1; l.color.set('#ff0000'); });
                 } else if (!blackoutActive) {
-                    fluorescentLights.forEach(l => { l.intensity = 1.2; l.color.set('#fffde8'); });
+                    fluorescentLights.forEach(light => {
+                        if (time >= light.userData.nextFlicker) {
+                            light.userData.flickerUntil = time + 45 + Math.random() * 160;
+                            light.userData.nextFlicker = time + 1200 + Math.random() * 7000;
+                        }
+                        const flickering = time < light.userData.flickerUntil;
+                        light.intensity = flickering && Math.random() > 0.35 ? 0.08 : light.userData.baseIntensity;
+                        light.color.set('#fffde8');
+                    });
                 }
             }
 
@@ -966,5 +1020,6 @@
             }
         }
     </script>
+    <script src="/game.js"></script>
 </body>
 </html>
