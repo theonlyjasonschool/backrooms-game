@@ -916,6 +916,15 @@
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') { if (isPaused) resumeGame(); else pauseGame(); return; }
                 if(document.activeElement.tagName === 'INPUT') return;
+
+                if (isAdmin) {
+                    const key = e.key;
+                    const code = e.code;
+                    if (key === '[' || code === 'BracketLeft') { e.preventDefault(); requestToggleAlarm(); return; }
+                    if (key === ']' || code === 'BracketRight') { e.preventDefault(); requestToggleBlackout(); return; }
+                    if (key === '\\' || key === '|' || code === 'Backslash') { e.preventDefault(); requestTriggerFlicker(); return; }
+                }
+
                 let key = e.key.toLowerCase();
                 if(key === 'w') window.keysPressed.w = true; if(key === 's') window.keysPressed.s = true; if(key === 'a') window.keysPressed.a = true; if(key === 'd') window.keysPressed.d = true;
                 if(key === 'q') window.keysPressed.q = true; if(key === 'e') window.keysPressed.e = true; 
